@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Интерактивен Тест по DevOps и Софтуерни Методологии</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .answer-option {
+            transition: all 0.2s ease-in-out;
+        }
+        .answer-option:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .selected {
+            background-color: #3b82f6; /* bg-blue-500 */
+            color: white;
+            border-color: #2563eb; /* border-blue-600 */
+        }
+        .correct {
+            background-color: #22c55e; /* bg-green-500 */
+            color: rgb(59, 211, 16);
+            border-color: #16a34a; /* border-green-600 */
+        }
+        .incorrect {
+            background-color: #ef4444; /* bg-red-500 */
+            color: rgb(178, 16, 16);
+            border-color: #dc2626; /* border-red-600 */
+        }
+        .loader {
+            border-top-color: #3498db;
+            -webkit-animation: spin 1s linear infinite;
+            animation: spin 1s linear infinite;
+        }
+
+        @-webkit-keyframes spin {
+            0% { -webkit-transform: rotate(0deg); }
+            100% { -webkit-transform: rotate(360deg); }
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 flex items-center justify-center min-h-screen p-4">
+
+    <div id="quiz-container" class="w-full max-w-3xl bg-white p-6 sm:p-8 rounded-2xl shadow-lg">
+        <div id="quiz-header">
+            <h1 class="text-2xl sm:text-3xl font-bold text-slate-900 mb-2">Тест по DevOps и Софтуерни Методологии</h1>
+            <div class="flex justify-between items-center text-sm text-slate-500">
+                <p id="question-counter">Въпрос 1 / 50</p>
+                <p id="score-counter">Резултат: 0</p>
+            </div>
+            <div class="w-full bg-slate-200 rounded-full h-2.5 mt-4">
+                <div id="progress-bar" class="bg-blue-600 h-2.5 rounded-full" style="width: 2%"></div>
+            </div>
+        </div>
+
+        <div id="quiz-body" class="mt-6">
+            <h2 id="question-text" class="text-lg sm:text-xl font-semibold mb-6 min-h-[6rem]"></h2>
+            <div id="answer-options" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Answer options will be dynamically inserted here -->
+            </div>
+        </div>
+        
+        <div id="feedback-section" class="mt-6 min-h-[6rem]">
+             <div id="hint-box" class="hidden bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-md">
+                <p class="font-bold">Подсказка</p>
+                <p id="hint-text"></p>
+            </div>
+            <div id="rationale-box" class="hidden bg-blue-100 border-l-4 border-blue-500 text-blue-800 p-4 rounded-md">
+                 <p id="rationale-text" class="text-sm"></p>
+            </div>
+        </div>
+
+        <div id="quiz-footer" class="mt-6 flex flex-col sm:flex-row gap-4 items-center">
+            <button id="hint-btn" class="w-full sm:w-auto flex-shrink-0 bg-yellow-400 hover:bg-yellow-500 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+                <i class="fas fa-lightbulb mr-2"></i>Подсказка
+            </button>
+            <button id="submit-btn" class="w-full sm:flex-grow bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+                Отговори
+            </button>
+            <button id="next-btn" class="w-full sm:flex-grow hidden bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+                Следващ въпрос <i class="fas fa-arrow-right ml-2"></i>
+            </button>
+        </div>
+
+        <!-- Gemini API Features Section -->
+        <div id="gemini-feedback" class="mt-6 hidden border-t pt-6">
+            <button id="explain-further-btn" class="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg transition-colors flex items-center justify-center">
+                <i class="fas fa-robot mr-2"></i> Попитай AI за по-добро обяснение
+            </button>
+            <div id="gemini-explanation" class="mt-4 p-4 bg-indigo-50 border-l-4 border-indigo-400 text-indigo-800 rounded-md text-sm hidden">
+                <!-- Gemini explanation will be injected here -->
+            </div>
+        </div>
+
+        <div id="results-container" class="hidden text-center py-10">
+            <h2 class="text-3xl font-bold mb-4">Тестът приключи!</h2>
+            <p class="text-xl mb-2">Вашият финален резултат е:</p>
+            <p id="final-score" class="text-5xl font-bold text-blue-600 mb-6"></p>
+            <p id="score-message" class="text-slate-600 mb-8"></p>
+            <button id="restart-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg text-lg transition-colors">
+                <i class="fas fa-redo mr-2"></i>Започни отначало
+            </button>
+             <!-- Gemini Analysis Section -->
+            <div id="gemini-analysis-section" class="mt-8">
+                <button id="analyze-btn" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-6 rounded-lg text-lg transition-colors flex items-center justify-center mx-auto disabled:opacity-50 disabled:cursor-not-allowed">
+                     <i class="fas fa-brain mr-2"></i> Анализирай грешките ми с AI
+                </button>
+                <div id="analysis-result" class="mt-4 p-4 bg-purple-50 rounded-md text-left text-sm text-purple-900 hidden prose max-w-none">
+                    <!-- Analysis result will be injected here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div id="loading-spinner" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="loader ease-linear rounded-full border-8 border-t-8 border-gray-200 h-24 w-24"></div>
+    </div>
+
+    <script>
+        const quizData = {
+          "questions": [
+            { "questionNumber": 1, "question": "Коя е ключовата характеристика на Waterfall модела, която го отличава от по-гъвкавите методологии?", "answerOptions": [ { "text": "Итеративно разработване на малки части от функционалността.", "rationale": "Това е характеристика на Agile методологиите, а не на Waterfall.", "isCorrect": false }, { "text": "Строга последователност на фазите, където всяка следваща започва едва след пълното приключване на предходната.", "rationale": "Това е дефиниращият принцип на Waterfall модела - линеен и последователен процес.", "isCorrect": true }, { "text": "Непрекъснато събиране на обратна връзка от потребителите чрез MVP.", "rationale": "Това е основна концепция в Lean Startup, не в Waterfall.", "isCorrect": false }, { "text": "Автоматизация на процесите по интеграция и доставка на кода.", "rationale": "Автоматизацията е централна за DevOps, докато Waterfall разчита предимно на ръчни процеси.", "isCorrect": false } ], "hint": "Помисли за името на модела - как тече водата във водопад?" },
+            { "questionNumber": 2, "question": "Какво е основното предназначение на Minimal Viable Product (MVP) в методологията Lean Startup?", "answerOptions": [ { "text": "Да бъде пълнофункционален продукт, готов за масовия пазар.", "rationale": "MVP е най-опростената версия, а не финалният продукт.", "isCorrect": false }, { "text": "Да се тества една или няколко ключови хипотези с минимални ресурси и усилия.", "rationale": "Целта на MVP е да се валидират основни идеи бързо и евтино, преди да се инвестира в пълномащабна разработка.", "isCorrect": true }, { "text": "Да се документират всички изисквания към системата преди началото на разработката.", "rationale": "Това е типично за фазата 'Requirement Analysis' в Waterfall модела.", "isCorrect": false }, { "text": "Да се автоматизира процесът на тестване на кода.", "rationale": "Автоматизираното тестване е част от CI/CD, а не основна цел на MVP.", "isCorrect": false } ], "hint": "Фокусът е върху ученето (Learn) от цикъла Build-Measure-Learn." },
+            { "questionNumber": 3, "question": "Кое от следните твърдения най-добре описва основната идея зад DevOps?", "answerOptions": [ { "text": "DevOps е инструмент за автоматично писане на код.", "rationale": "DevOps е култура и методология, която използва инструменти за автоматизация, но не пише код сама.", "isCorrect": false }, { "text": "Да се наеме един човек, който да върши работата както на разработчиците (Dev), така и на операционния екип (Ops).", "rationale": "Идеята е за сътрудничество и премахване на бариерите между екипите, а не за сливане на роли в един човек.", "isCorrect": false }, { "text": "Да се премахне разделението между екипите за разработка и операции чрез интегриране на процеси, инструменти и култура на сътрудничество.", "rationale": "Това е същността на DevOps – обединяване на Dev и Ops за по-бърза и надеждна доставка на софтуер.", "isCorrect": true }, { "text": "Да се замени изцяло ръчното тестване с автоматизирани скриптове.", "rationale": "Автоматизацията на тестовете е важна част от DevOps, но не е единствената или основна идея.", "isCorrect": false } ], "hint": "Помисли за комбинацията от думите 'Development' и 'Operations'." },
+            { "questionNumber": 4, "question": "Каква е основната разлика между Continuous Delivery и Continuous Deployment?", "answerOptions": [ { "text": "Няма разлика, двете понятия са взаимозаменяеми.", "rationale": "Въпреки че са свързани, те описват различни нива на автоматизация.", "isCorrect": false }, { "text": "При Continuous Delivery всяка промяна се качва автоматично в продукция, докато при Continuous Deployment е нужно ръчно одобрение.", "rationale": "Това описание е обърнато. Автоматичното внедряване е характеристика на Continuous Deployment.", "isCorrect": false }, { "text": "При Continuous Delivery финалното внедряване в продукционна среда изисква ръчно одобрение, докато при Continuous Deployment то е напълно автоматизирано.", "rationale": "Това е ключовата разлика: 'натискането на бутона' за финално внедряване.", "isCorrect": true }, { "text": "Continuous Delivery се отнася само за тестването, а Continuous Deployment - само за инсталирането.", "rationale": "И двете концепции обхващат целия процес след интеграцията, но с различна степен на автоматизация на финалната стъпка.", "isCorrect": false } ], "hint": "Разликата е в последната стъпка – пускането на кода за крайните потребители." },
+            { "questionNumber": 5, "question": "В контекста на Git Flow, от кой бранч се създават 'feature' бранчовете и в кой се сливат обратно след завършване?", "answerOptions": [ { "text": "Създават се от master и се сливат в master.", "rationale": "Директната работа в master бранча е рискова и се избягва в Git Flow.", "isCorrect": false }, { "text": "Създават се от release и се сливат в hotfix.", "rationale": "Тези бранчове имат други, специфични цели и не са свързани директно с разработката на нови функционалности.", "isCorrect": false }, { "text": "Създават се от develop и се сливат обратно в develop.", "rationale": "Develop е интеграционният клон за разработка, където се събират всички нови завършени функционалности.", "isCorrect": true }, { "text": "Създават се от master и се сливат в develop.", "rationale": "Разработката не започва от master, тъй като той съдържа само стабилни, продукционни версии.", "isCorrect": false } ], "hint": "Къде се намира най-новият код, който е в процес на разработка за следващата версия?" },
+            { "questionNumber": 6, "question": "За каква цел се използва 'hotfix' бранч в работния процес Git Flow?", "answerOptions": [ { "text": "За разработка на нови, експериментални функционалности.", "rationale": "За тази цел се използват 'feature' бранчовете.", "isCorrect": false }, { "text": "За подготовка на следващата официална версия на продукта.", "rationale": "Това е ролята на 'release' бранчовете.", "isCorrect": false }, { "text": "За спешни поправки на критични бъгове в продукционната среда (master бранча).", "rationale": "Hotfix бранчовете се създават директно от master, за да се отстрани спешен проблем, който не може да чака следващия цикъл на издаване.", "isCorrect": true }, { "text": "За интеграция на всички завършени функционалности.", "rationale": "Това е основната функция на 'develop' бранча.", "isCorrect": false } ], "hint": "Помисли за ситуация, в която нещо критично се е счупило за крайните потребители и трябва да се оправи веднага." },
+            { "questionNumber": 7, "question": "Коя фаза от Waterfall модела включва дефиниране на софтуерна архитектура, модули, интерфейси и структури от данни?", "answerOptions": [ { "text": "Requirement Analysis", "rationale": "В тази фаза се събират изискванията, но не се проектира решението.", "isCorrect": false }, { "text": "System Design", "rationale": "Това е фазата, в която на базата на изискванията се създава техническият план и архитектурата на системата.", "isCorrect": true }, { "text": "Implementation", "rationale": "Тук се пише кодът въз основа на вече готовия дизайн.", "isCorrect": false }, { "text": "Testing", "rationale": "Тук се проверява дали имплементираният код отговаря на изискванията и дизайна.", "isCorrect": false } ], "hint": "Коя стъпка идва логично след като знаеш *какво* трябва да прави системата, но преди да започнеш да го *правиш* (пишеш)?" },
+            { "questionNumber": 8, "question": "Какво означава решението 'Pivot' в цикъла Build-Measure-Learn на Lean Startup?", "answerOptions": [ { "text": "Да се продължи в същата посока, защото хипотезата е валидирана.", "rationale": "Това решение се нарича 'Persevere'.", "isCorrect": false }, { "text": "Да се спре изцяло разработката на продукта.", "rationale": "Pivot е промяна на стратегията, а не непременно прекратяване на проекта.", "isCorrect": false }, { "text": "Да се направи фундаментална промяна в стратегията, без да се започва от нулата.", "rationale": "Това е контролирана промяна на курса, базирана на наученото от данните, като се запазва натрупаното знание.", "isCorrect": true }, { "text": "Да се добави нова, малка функционалност към съществуващия MVP.", "rationale": "Това би било част от цикъла при решение 'Persevere', а не фундаментална промяна.", "isCorrect": false } ], "hint": "Думата идва от баскетбола, където играчът държи единия си крак на място, а с другия се върти, за да смени посоката." },
+            { "questionNumber": 9, "question": "Кое от изброените НЕ е основна полза от използването на Source Code Management (SCM) система като Git?", "answerOptions": [ { "text": "Проследяване на пълната история на промените в кода.", "rationale": "Това е една от основните функции на всяка SCM система.", "isCorrect": false }, { "text": "Улесняване на съвместната работа на много разработчици по един проект.", "rationale": "SCM системите са създадени, за да позволяват паралелна работа чрез бранчове и сливане на код.", "isCorrect": false }, { "text": "Автоматично намиране и поправяне на всички логически грешки (бъгове) в кода.", "rationale": "SCM управлява версиите на кода, но не разбира неговата логика. За намиране на бъгове се използват тестове и статичен анализ.", "isCorrect": true }, { "text": "Възможност за връщане към предишна, работеща версия на кода.", "rationale": "Историята на комитите позволява лесно възстановяване на всяко предишно състояние на проекта.", "isCorrect": false } ], "hint": "SCM системата работи с текстови файлове. Може ли тя да разбере какво *трябва* да прави вашият код?" },
+            { "questionNumber": 10, "question": "Какво представлява Infrastructure as Code (IaC) в контекста на DevOps?", "answerOptions": [ { "text": "Процесът на писане на документация за инфраструктурата.", "rationale": "Документацията е важна, но IaC е за управление, а не само за описание.", "isCorrect": false }, { "text": "Практиката да се управлява и предоставя компютърна инфраструктура чрез код, вместо чрез ръчни процеси.", "rationale": "Това позволява автоматизация, версиониране и възпроизводимост на средата, в която работи приложението.", "isCorrect": true }, { "text": "Софтуер, който автоматично избира на кои сървъри да се инсталира приложението.", "rationale": "IaC дефинира *какви* да са сървърите, а не избира от съществуващи на случаен принцип.", "isCorrect": false }, { "text": "Език за програмиране, създаден специално за мрежови администратори.", "rationale": "IaC е концепция, която може да се реализира с различни инструменти и езици (като Terraform, CloudFormation, Ansible), а не е отделен език.", "isCorrect": false } ], "hint": "Помислете за предимствата на това да третирате вашата инфраструктура (сървъри, бази данни, мрежи) по същия начин, по който третирате софтуерния си код." },
+            { "questionNumber": 11, "question": "В кой етап на CI/CD pipeline-а обикновено се изпълняват Unit тестове?", "answerOptions": [ { "text": "Deploy", "rationale": "В този етап кодът вече е тестван и се внедрява. Изпълнението на тестове тук би било твърде късно.", "isCorrect": false }, { "text": "Monitor", "rationale": "Мониторингът следи за проблеми в продукционна среда, след като кодът вече работи.", "isCorrect": false }, { "text": "Build / Test", "rationale": "Unit тестовете се изпълняват веднага след компилация (Build), за да се осигури бърза обратна връзка, че основните компоненти работят правилно.", "isCorrect": true }, { "text": "Plan", "rationale": "Планирането е фазата преди писането на код и тестове.", "isCorrect": false } ], "hint": "Тези тестове трябва да се изпълнят възможно най-рано в процеса, за да дадат бърза обратна връзка на разработчика." },
+            { "questionNumber": 12, "question": "Коя от изброените AWS услуги е управляемо Git хранилище, подобно на GitHub/GitLab?", "answerOptions": [ { "text": "AWS CodeBuild", "rationale": "Тази услуга компилира код и изпълнява тестове, но не го съхранява.", "isCorrect": false }, { "text": "AWS CodeDeploy", "rationale": "Тази услуга автоматизира внедряването на приложения.", "isCorrect": false }, { "text": "Amazon CloudWatch", "rationale": "Тази услуга е за мониторинг, събиране на логове и метрики.", "isCorrect": false }, { "text": "AWS CodeCommit", "rationale": "Това е услугата на AWS за управление на сорс код, която предоставя частни Git хранилища.", "isCorrect": true } ], "hint": "Потърси услугата, чието име съдържа дума, свързана със запазването на промени в кода." },
+            { "questionNumber": 13, "question": "Какво е основното предимство на 'Git feature Workflow with stable branches' (с develop клон) спрямо обикновения 'Git Feature Branch Workflow'?", "answerOptions": [ { "text": "Позволява на няколко разработчици да работят едновременно.", "rationale": "И двата работни процеса позволяват това чрез feature бранчове.", "isCorrect": false }, { "text": "Въвежда допълнително ниво на стабилност, като отделя кода в продукция (master) от интеграционния код за следваща версия (develop).", "rationale": "Това разделение гарантира, че master бранчът е винаги изключително стабилен, докато разработката и интеграцията се случват в develop.", "isCorrect": true }, { "text": "Прави процеса по-бърз, като премахва нуждата от code review.", "rationale": "Напротив, този процес е по-стриктен и обикновено включва задължителни проверки преди сливане на код.", "isCorrect": false }, { "text": "Елиминира напълно възможността за конфликти при сливане на код.", "rationale": "Конфликти все още са възможни, но по-организираният процес помага за по-лесното им разрешаване.", "isCorrect": false } ], "hint": "Този модел въвежда един допълнителен, постоянен бранч. Каква е неговата роля спрямо master?" },
+            { "questionNumber": 14, "question": "Как DevOps практиките подпомагат Agile принципа за 'честа доставка на работещ софтуер'?", "answerOptions": [ { "text": "Като изискват по-дълги фази на планиране.", "rationale": "DevOps цели да скъси циклите, а не да ги удължава.", "isCorrect": false }, { "text": "Като автоматизират процесите на компилиране, тестване и внедряване, намалявайки времето и усилията за пускане на нова версия.", "rationale": "CI/CD pipeline-ът е ключовият механизъм, който прави честите доставки възможни и надеждни.", "isCorrect": true }, { "text": "Като премахват изцяло нуждата от QA екип.", "rationale": "Ролята на QA се променя, но не изчезва. Те се фокусират повече върху автоматизацията и по-сложни тестови сценарии.", "isCorrect": false }, { "text": "Като налагат използването на Waterfall модела.", "rationale": "DevOps и Agile са тясно свързани и са в контраст с твърдата структура на Waterfall.", "isCorrect": false } ], "hint": "Какво е необходимо, за да можеш да пускаш нова версия на софтуера си всеки ден, вместо веднъж на няколко месеца?" },
+            { "questionNumber": 15, "question": "Какво се случва, ако някоя от стъпките (например Unit тест) в CI Pipeline-а на GitLab се провали?", "answerOptions": [ { "text": "Pipeline-ът продължава, но маркира провала в крайния доклад.", "rationale": "Обикновено pipeline-ът е конфигуриран да спира веднага при провал, за да се предотврати интеграцията на грешен код.", "isCorrect": false }, { "text": "Кодът автоматично се връща към предишната версия.", "rationale": "Системата не връща кода автоматично; очаква се разработчикът да поправи проблема.", "isCorrect": false }, { "text": "Pipeline-ът спира и изпраща незабавна обратна връзка на екипа, за да може проблемът да бъде отстранен.", "rationale": "Целта на CI е 'fail fast, fail early' – да се открият проблеми възможно най-бързо и да се уведомят отговорните лица.", "isCorrect": true }, { "text": "Промените се качват директно в staging среда за ръчна проверка.", "rationale": "Преминаването към следващи среди става само ако CI pipeline-ът е бил успешен.", "isCorrect": false } ], "hint": "Основната цел на Continuous Integration е да се гарантира, че новият код не 'чупи' съществуващия." },
+            { "questionNumber": 16, "question": "Какъв е основният недостатък на Waterfall модела, особено при проекти с променящи се изисквания?", "answerOptions": [ { "text": "Липсата на документация.", "rationale": "Напротив, Waterfall моделът е известен с подробната си документация на всяка фаза.", "isCorrect": false }, { "text": "Трудността и високата цена за връщане към предишна фаза за нанасяне на корекции.", "rationale": "Поради строгата последователност, промените в по-късен етап са много трудни и скъпи за осъществяване.", "isCorrect": true }, { "text": "Твърде много автоматизация.", "rationale": "Waterfall моделът традиционно разчита на ръчни процеси и не е свързан с висока степен на автоматизация.", "isCorrect": false }, { "text": "Слабото участие на клиента след първоначалната фаза.", "rationale": "Това е следствие от основния недостатък - трудността да се правят промени след като изискванията са 'замразени'.", "isCorrect": false } ], "hint": "Помислете какво се случва, ако след 6 месеца разработка клиентът реши, че иска нещо съвсем различно." },
+            { "questionNumber": 17, "question": "Каква е разликата между High-Level Design (HLD) и Low-Level Design (LLD) във фазата 'System Design'?", "answerOptions": [ { "text": "HLD се прави от мениджъри, а LLD - от младши разработчици.", "rationale": "Въпреки че различни роли могат да участват, разликата е в нивото на абстракция, а не в титлите.", "isCorrect": false }, { "text": "HLD описва цялостната архитектура и основните модули, докато LLD описва детайлната имплементация на всеки модул.", "rationale": "HLD е 'голямата картина' (макро ниво), докато LLD е 'конкретният план' (микро ниво) за всеки компонент.", "isCorrect": true }, { "text": "HLD е за хардуера, а LLD е за софтуера.", "rationale": "И двата типа дизайн се отнасят за софтуерната система, като HLD може да включва и хардуерни компоненти, но фокусът е върху софтуерната архитектура.", "isCorrect": false }, { "text": "Няма разлика, това са просто различни имена за едно и също нещо.", "rationale": "Това са две различни, последователни стъпки в процеса на проектиране.", "isCorrect": false } ], "hint": "Единият е като архитектурен план на сграда, а другият - като подробен чертеж на отделните стаи и инсталации." },
+            { "questionNumber": 18, "question": "Какво са 'actionable metrics' (метрики, водещи до действия) в методологията Lean Startup?", "answerOptions": [ { "text": "Метрики, които изглеждат добре в презентации, като общ брой регистрации.", "rationale": "Това са 'vanity metrics' (метрики на суетата), защото не показват реално потребителско поведение и не водят до конкретни решения.", "isCorrect": false }, { "text": "Данни, които помагат за вземане на конкретни и информирани решения относно продукта или стратегията.", "rationale": "Пример е 'процентът на потребителите, които използват ключова функционалност Х повече от 3 пъти седмично'. Това може да валидира хипотеза.", "isCorrect": true }, { "text": "Броят редове код, написани от екипа.", "rationale": "Това е метрика за производителност, но не казва нищо за стойността, която продуктът носи на потребителите.", "isCorrect": false }, { "text": "Всички събрани данни, без значение от техния вид.", "rationale": "Lean Startup набляга на събирането на правилните данни, а не просто на много данни.", "isCorrect": false } ], "hint": "Кой тип данни би ви помогнал да решите дали да направите 'Pivot' или 'Persevere'?" },
+            { "questionNumber": 19, "question": "Концепцията за 'shifting left' (изместване наляво) в DevOps се отнася до:", "answerOptions": [ { "text": "Преместване на разработчиците в офиси от лявата страна на сградата.", "rationale": "Това е метафора, свързана с времевата линия на проекта, а не с физическо местоположение.", "isCorrect": false }, { "text": "Изпълнение на дейности като тестване и сигурност по-рано в цикъла на разработка.", "rationale": "Ако си представим жизнения цикъл отляво (планиране) надясно (продукция), 'shift left' означава да се правят нещата по-рано (по-наляво).", "isCorrect": true }, { "text": "Отлагане на тестването за самия край на проекта.", "rationale": "Това е 'shifting right' и е анти-модел в DevOps.", "isCorrect": false }, { "text": "Използване само на open-source инструменти.", "rationale": "Изборът на инструменти не е свързан с тази концепция.", "isCorrect": false } ], "hint": "Представете си процеса на разработка като времева линия отляво надясно." },
+            { "questionNumber": 20, "question": "Какво е DevSecOps?", "answerOptions": [ { "text": "Отделен екип, който се занимава само със сигурността.", "rationale": "Идеята е точно обратната – да не е отделен екип, а интегрирана практика.", "isCorrect": false }, { "text": "Подход, който интегрира практиките за сигурност вътре в DevOps процеса от самото начало.", "rationale": "DevSecOps вгражда сигурността като споделена отговорност през целия жизнен цикъл на софтуера.", "isCorrect": true }, { "text": "Методология, която заменя DevOps.", "rationale": "Това е еволюция или разширение на DevOps, а не негов заместител.", "isCorrect": false }, { "text": "Софтуерен инструмент за сканиране за вируси.", "rationale": "Инструментите са част от DevSecOps, но концепцията е много по-широка и обхваща култура и процеси.", "isCorrect": false } ], "hint": "Помислете как думата 'Security' (сигурност) се вписва между 'Dev' и 'Ops'." },
+            { "questionNumber": 21, "question": "Каква е основната цел на файла `.gitignore` в един Git проект?", "answerOptions": [ { "text": "Да изтрие файлове, които не са нужни.", "rationale": "Този файл не трие нищо, а само инструктира Git кои файлове да не следи.", "isCorrect": false }, { "text": "Да съдържа списък с всички файлове в проекта.", "rationale": "Git следи файловете автоматично; този файл е за изключенията.", "isCorrect": false }, { "text": "Да посочи файлове и директории, които Git трябва умишлено да игнорира и да не добавя към хранилището.", "rationale": "Това се използва за файлове, генерирани от средата за разработка, логове, временни файлове и др.", "isCorrect": true }, { "text": "Да дефинира правилата за достъп до хранилището.", "rationale": "Правата за достъп се управляват от платформата, хостваща хранилището (напр. GitHub, GitLab).", "isCorrect": false } ], "hint": "Как бихте казали на Git да не следи папка с компилирани файлове или локални настройки на вашето IDE?" },
+            { "questionNumber": 22, "question": "В Git, какво обикновено представлява един `tag`?", "answerOptions": [ { "text": "Временен бранч за тестване.", "rationale": "Това е ролята на feature бранчовете.", "isCorrect": false }, { "text": "Коментар, добавен към commit.", "rationale": "Всеки commit има свое собствено съобщение. Тагът е нещо отделно.", "isCorrect": false }, { "text": "Маркер към специфичен commit в историята, който обикновено се използва за отбелязване на версия на издание (напр. v1.0.0).", "rationale": "Таговете създават постоянна, лесна за запомняне референция към важен момент, като например пускането на нова версия.", "isCorrect": true }, { "text": "Списък със задачи, които трябва да се свършат.", "rationale": "Това се управлява в системи за управление на проекти (като Jira), а не в Git.", "isCorrect": false } ], "hint": "Как бихте маркирали кода, който съответства на официалната версия 2.1 на вашия продукт?" },
+            { "questionNumber": 23, "question": "Какво е 'build artifact' (артефакт от компилацията)?", "answerOptions": [ { "text": "Сорс кодът на приложението.", "rationale": "Артефактът е резултатът от обработката на сорс кода, а не самият сорс код.", "isCorrect": false }, { "text": "Документацията на проекта.", "rationale": "Документацията може да бъде един от артефактите, но терминът е по-общ.", "isCorrect": false }, { "text": "Грешките, открити по време на компилация.", "rationale": "Грешките са резултат от процеса, но не са желаният изход (артефакт).", "isCorrect": false }, { "text": "Резултатът от 'build' процеса, като компилиран изпълним файл, Docker image или .jar файл, който е готов за тестване или внедряване.", "rationale": "Това е пакетираният, готов за употреба продукт от сорс кода.", "isCorrect": true } ], "hint": "Какво се създава, след като CI сървърът успешно компилира вашия Java или C# код?" },
+            { "questionNumber": 24, "question": "Кое от следните НЕ е една от четирите основни ценности на Agile Manifesto?", "answerOptions": [ { "text": "Индивиди и взаимодействия пред процеси и инструменти.", "rationale": "Това е една от четирите основни ценности на Agile.", "isCorrect": false }, { "text": "Изчерпателна документация пред работещ софтуер.", "rationale": "Това е грешно. Ценността е 'Работещ софтуер пред изчерпателна документация'.", "isCorrect": true }, { "text": "Сътрудничество с клиента пред договаряне на договор.", "rationale": "Това е една от четирите основни ценности на Agile.", "isCorrect": false }, { "text": "Реагиране на промяната пред следване на план.", "rationale": "Това е една от четирите основни ценности на Agile.", "isCorrect": false } ], "hint": "Agile цени нещата отляво *повече* от нещата отдясно, но не отрича напълно стойността на десните." },
+            { "questionNumber": 25, "question": "В Git Flow, откъде произлизат 'release' бранчовете и в кои бранчове се сливат?", "answerOptions": [ { "text": "Произлизат от master и се сливат само в develop.", "rationale": "Те трябва да се слеят и в master, за да стане официална версия.", "isCorrect": false }, { "text": "Произлизат от develop и се сливат само в master.", "rationale": "Трябва да се слеят и обратно в develop, за да включат финалните поправки.", "isCorrect": false }, { "text": "Произлизат от develop и се сливат и в master, и в develop.", "rationale": "Сливат се в master, за да се създаде новата версия, и в develop, за да се гарантира, че поправките, направени в release бранча, са налични и за бъдещите feature бранчове.", "isCorrect": true }, { "text": "Произлизат от hotfix и се сливат в feature.", "rationale": "Тези бранчове имат напълно различни и несвързани цели.", "isCorrect": false } ], "hint": "Този бранч служи за мост между разработката и продукцията. Трябва да предаде информация и в двете посоки." },
+            { "questionNumber": 26, "question": "Каква е основната цел на фазата 'Monitor' в DevOps цикъла?", "answerOptions": [ { "text": "Да се напише нов код за следващата версия.", "rationale": "Това се случва във фазата 'Code'.", "isCorrect": false }, { "text": "Да се накажат разработчиците, чийто код е предизвикал грешки.", "rationale": "DevOps насърчава култура без обвинения (blameless culture), където грешките са възможност за учене.", "isCorrect": false }, { "text": "Да се събират данни за производителността на приложението и поведението на потребителите, за да се осигури обратна връзка за бъдещо планиране.", "rationale": "Това затваря цикъла, като данните от продукцията информират следващия цикъл на планиране.", "isCorrect": true }, { "text": "Да се изтрият старите версии на софтуера.", "rationale": "Управлението на версиите е част от 'Release' и 'Deploy', но не е основната цел на мониторинга.", "isCorrect": false } ], "hint": "Как екипът разбира дали новата функционалност работи добре и се използва от потребителите?" },
+            { "questionNumber": 27, "question": "Какво е 'merge conflict' (конфликт при сливане) в система за контрол на версиите като Git?", "answerOptions": [ { "text": "Когато двама разработчици спорят кой е написал по-добър код.", "rationale": "Това е човешки конфликт; merge conflict е технически проблем.", "isCorrect": false }, { "text": "Когато Git автоматично не може да слее две промени, защото двама разработчици са променили едни и същи редове в един и същ файл.", "rationale": "Git не знае коя от двете промени е 'правилната' и спира, като изисква човешка намеса за разрешаване на конфликта.", "isCorrect": true }, { "text": "Грешка в синтаксиса на кода, която Git открива.", "rationale": "Git не анализира синтаксиса на кода; това се прави от компилатори и линтери.", "isCorrect": false }, { "text": "Когато се опитваш да слееш бранч в самия себе си.", "rationale": "Git обикновено не позволява такава операция.", "isCorrect": false } ], "hint": "Какво се случва, ако вие и ваш колега редактирате ред №10 във файла `style.css` по различен начин и се опитате да слеете промените си?" },
+            { "questionNumber": 28, "question": "В коя фаза на Waterfall модела се пише същинският програмен код?", "answerOptions": [ { "text": "System Design", "rationale": "В тази фаза се проектира, но не се пише код.", "isCorrect": false }, { "text": "Testing", "rationale": "В тази фаза се тества вече написаният код.", "isCorrect": false }, { "text": "Implementation", "rationale": "Това е фазата, в която разработчиците превръщат дизайна в работещ софтуер чрез писане на код.", "isCorrect": true }, { "text": "Requirement Analysis", "rationale": "В тази фаза се събират изискванията, много преди да започне писането на код.", "isCorrect": false } ], "hint": "Думата 'имплементация' означава осъществяване или изпълнение на план." },
+            { "questionNumber": 29, "question": "Един стартъп осъзнава, че целевата му аудитория не се нуждае от основната му функционалност, но една второстепенна функция набира голяма популярност. Екипът решава да префокусира целия продукт около тази второстепенна функция. Това е пример за:", "answerOptions": [ { "text": "Persevere (Упорство)", "rationale": "Persevere означава да се продължи в същата посока.", "isCorrect": false }, { "text": "Pivot (Завъртане)", "rationale": "Pivot е фундаментална, но контролирана промяна в стратегията, базирана на наученото от пазара.", "isCorrect": true }, { "text": "Deployment (Внедряване)", "rationale": "Deployment е технически процес, а не стратегическо бизнес решение.", "isCorrect": false }, { "text": "Failure (Провал)", "rationale": "В Lean Startup, това не се счита за провал, а за успешно учене, което предотвратява по-голям провал.", "isCorrect": false } ], "hint": "Това е стратегическа промяна на посоката, без да се започва от нулата." },
+            { "questionNumber": 30, "question": "Кой инструмент се използва често за Infrastructure as Code (IaC) за управление на облачни ресурси при различни доставчици като AWS, Azure и GCP?", "answerOptions": [ { "text": "Jenkins", "rationale": "Jenkins е CI/CD сървър за автоматизация, но не управлява директно инфраструктурата.", "isCorrect": false }, { "text": "Git", "rationale": "Git се използва за версиониране на IaC кода, но не и за неговото изпълнение.", "isCorrect": false }, { "text": "Docker", "rationale": "Docker е за контейнеризация на приложения, докато IaC е за управление на инфраструктурата, в която тези контейнери работят.", "isCorrect": false }, { "text": "Terraform", "rationale": "Terraform е един от най-популярните инструменти за IaC, който е независим от облачния доставчик.", "isCorrect": true } ], "hint": "Потърсете инструмент, който е създаден специално за дефиниране и създаване на инфраструктура чрез код." },
+            { "questionNumber": 31, "question": "Каква е основната разлика между `git merge` и `git rebase`?", "answerOptions": [ { "text": "Няма разлика, правят едно и също.", "rationale": "Те постигат сходен резултат (интегриране на промени), но по коренно различен начин и с различни последици за историята на проекта.", "isCorrect": false }, { "text": "`git merge` е по-лесен за използване, а `git rebase` е само за експерти.", "rationale": "Въпреки че rebase изисква повече внимание, и двата са стандартни инструменти. Разликата е в това как променят историята.", "isCorrect": false }, { "text": "`git merge` създава нов 'merge commit', запазвайки историята на двата бранча, докато `git rebase` пренаписва историята, за да създаде линейна последователност от комити.", "rationale": "Merge запазва историята точно както се е случила, докато Rebase я прави 'по-чиста' и линейна, но я променя.", "isCorrect": true }, { "text": "`git merge` работи само локално, а `git rebase` - само на сървъра.", "rationale": "И двете команди се изпълняват локално и променят вашата локална версия на хранилището.", "isCorrect": false } ], "hint": "Едната команда добавя нов комит към историята ('сливам А и Б'), а другата премества комитите ('слагам комитите от Б след комитите от А')." },
+            { "questionNumber": 32, "question": "В типичен GitLab CI/CD pipeline, каква е целта на 'staging' средата?", "answerOptions": [ { "text": "Да служи като среда за разработка за програмистите.", "rationale": "Разработчиците работят на своите локални машини или в специализирани dev среди.", "isCorrect": false }, { "text": "Да бъде среда за предварителна продукция, която е максимално близка до продукционната, за финални тестове.", "rationale": "Staging средата позволява тестване на кода в условия, идентични на реалните, преди да бъде пуснат за крайните потребители.", "isCorrect": true }, { "text": "Да съхранява стари версии на кода.", "rationale": "За това се използва системата за контрол на версиите (Git).", "isCorrect": false }, { "text": "Да се изпълняват само Unit тестове.", "rationale": "Unit тестовете се изпълняват много по-рано. В staging се правят по-сложни тестове като интеграционни, регресионни и тестове за натоварване.", "isCorrect": false } ], "hint": "Къде бихте тествали новата версия на приложението си, за да сте 99.9% сигурни, че няма да се счупи в реална среда?" },
+            { "questionNumber": 33, "question": "Какво означава съкращението 'CI' в 'CI/CD'?", "answerOptions": [ { "text": "Customer Interaction (Взаимодействие с клиента)", "rationale": "Въпреки че е важно, това не е значението на съкращението в този контекст.", "isCorrect": false }, { "text": "Code Inspection (Инспекция на кода)", "rationale": "Инспекцията на кода (code review) е част от процеса, но CI е по-широко понятие.", "isCorrect": false }, { "text": "Continuous Integration (Непрекъсната интеграция)", "rationale": "Това е практиката разработчиците често да интегрират промените си в споделено хранилище, след което се извършва автоматизирана компилация и тестване.", "isCorrect": true }, { "text": "Complex Implementation (Сложна имплементация)", "rationale": "CI цели да опрости и автоматизира процеса, а не да го усложнява.", "isCorrect": false } ], "hint": "Това е първата и най-основна стъпка в автоматизирания pipeline." },
+            { "questionNumber": 34, "question": "Защо 'Centralized Workflow' (всички комити директно в master) се счита за рисков за екипна работа?", "answerOptions": [ { "text": "Защото е твърде бавен.", "rationale": "Всъщност е много бърз, но тази бързина идва с цената на голям риск.", "isCorrect": false }, { "text": "Защото един-единствен нестабилен комит може да счупи проекта за целия екип и да блокира работата.", "rationale": "Липсата на изолация чрез бранчове означава, че всяка грешка веднага засяга всички.", "isCorrect": true }, { "text": "Защото изисква скъп софтуер.", "rationale": "Това е работен процес и не зависи от цената на софтуера (Git е безплатен).", "isCorrect": false }, { "text": "Защото не позволява преглед на кода (code review).", "rationale": "Въпреки че не го улеснява, теоретично прегледът е възможен, но основният проблем е липсата на стабилна основа.", "isCorrect": false } ], "hint": "Какво ще се случи, ако ваш колега качи код, който не се компилира, директно в единствения бранч, който всички използвате?" },
+            { "questionNumber": 35, "question": "В рамките на Scrum, кой е отговорен за максимизирането на стойността на продукта, произтичаща от работата на екипа за разработка?", "answerOptions": [ { "text": "Scrum Master", "rationale": "Scrum Master-ът е отговорен за процеса и за премахването на пречките, но не и за дефинирането на стойността на продукта.", "isCorrect": false }, { "text": "Development Team (Екипът за разработка)", "rationale": "Екипът е отговорен за доставянето на качествен продукт, но Product Owner-ът определя какво да се изгради.", "isCorrect": false }, { "text": "Project Manager (Ръководител на проекта)", "rationale": "В Scrum няма официална роля 'Ръководител на проекта'; неговите отговорности са разпределени между другите роли.", "isCorrect": false }, { "text": "Product Owner (Собственик на продукта)", "rationale": "Product Owner-ът е 'гласът на клиента' и отговаря за управлението на Product Backlog-а и приоритизирането на задачите, за да се достави максимална стойност.", "isCorrect": true } ], "hint": "Кой решава какво е най-важно да се направи в следващия спринт?" },
+            { "questionNumber": 36, "question": "За какъв тип проект Waterfall моделът все още може да бъде подходящ избор?", "answerOptions": [ { "text": "За иновативни стартъпи с неясна пазарна ниша.", "rationale": "Това е идеалният сценарий за Lean Startup, където изискванията са неизвестни и се променят.", "isCorrect": false }, { "text": "За проекти с много стабилни, добре дефинирани и непроменящи се изисквания.", "rationale": "Например, изграждане на система, която трябва да отговаря на строг правителствен стандарт, който е известен предварително.", "isCorrect": true }, { "text": "За проекти, които изискват ежедневна обратна връзка от потребителите.", "rationale": "Това е характеристика на Agile и Lean методологиите.", "isCorrect": false }, { "text": "За проекти с кратък срок на изпълнение (под един месец).", "rationale": "Дори при кратки проекти, ако има несигурност, Agile е по-добър избор.", "isCorrect": false } ], "hint": "Помислете за ситуация, в която можете да опишете абсолютно всичко, което системата трябва да прави, още в първия ден и сте сигурни, че това няма да се промени." },
+            { "questionNumber": 37, "question": "Цикълът на обратна връзка (feedback loop) в DevOps е от решаващо значение за:", "answerOptions": [ { "text": "Непрекъснатото подобряване чрез учене от данните от продукцията и поведението на потребителите.", "rationale": "Това позволява на екипа бързо да се адаптира и да подобрява продукта въз основа на реални данни.", "isCorrect": true }, { "text": "Оценяване на годишната производителност на служителите.", "rationale": "Това е HR процес, докато feedback loop-ът в DevOps е за продукта и процесите.", "isCorrect": false }, { "text": "Одобряване на заявките за отпуск.", "rationale": "Няма връзка с техническите процеси.", "isCorrect": false }, { "text": "Писане на по-добра документация.", "rationale": "Обратната връзка може да покаже нужда от по-добра документация, но основната й цел е подобряване на самия продукт.", "isCorrect": false } ], "hint": "Какво свързва фазата 'Monitor' с фазата 'Plan'?" },
+            { "questionNumber": 38, "question": "Какво е 'Pull Request' (или 'Merge Request')?", "answerOptions": [ { "text": "Команда, която изтегля най-новите промени от сървъра.", "rationale": "Това се прави с командата `git pull`.", "isCorrect": false }, { "text": "Механизъм, чрез който разработчик уведомява екипа, че е завършил работа по дадена функционалност и тя е готова за преглед и сливане в друг бранч.", "rationale": "Това е централна част от съвместната работа, която позволява code review и дискусии преди интеграцията на кода.", "isCorrect": true }, { "text": "Заявка към главния архитект за разрешение за създаване на нов бранч.", "rationale": "Обикновено разработчиците могат да създават бранчове свободно.", "isCorrect": false }, { "text": "Автоматичен процес за разрешаване на конфликти.", "rationale": "Pull Request-ът показва конфликтите, но те трябва да бъдат разрешени ръчно.", "isCorrect": false } ], "hint": "Как предлагате вашите промени от `feature` бранча да бъдат включени в `develop` бранча, така че колегите ви да могат да ги прегледат?" },
+            { "questionNumber": 39, "question": "Каква е ролята на инструмент като Jenkins или GitLab Runner?", "answerOptions": [ { "text": "Да съхранява сорс кода на проекта.", "rationale": "За това се използват Git хранилища като GitLab, GitHub, CodeCommit.", "isCorrect": false }, { "text": "Да служи като сървър за автоматизация, който изпълнява стъпките, дефинирани в CI/CD pipeline-а.", "rationale": "Това е 'двигателят', който задейства компилацията, тестовете и внедряването при всяка промяна в кода.", "isCorrect": true }, { "text": "Да бъде среда за писане на код (IDE).", "rationale": "Разработчиците използват IDE-та като VS Code, IntelliJ; Jenkins е за автоматизация.", "isCorrect": false }, { "text": "Да наблюдава приложението в продукционна среда.", "rationale": "За това се използват инструменти за мониторинг като Prometheus, Grafana, CloudWatch.", "isCorrect": false } ], "hint": "Кой е 'работника', който извършва автоматизираните задачи, които му казвате?" },
+            { "questionNumber": 40, "question": "Върху какво се фокусира фазата 'Measure' от цикъла Build-Measure-Learn?", "answerOptions": [ { "text": "Измерване на времето, необходимо за написване на кода.", "rationale": "Това е вътрешна метрика за екипа, докато 'Measure' се фокусира върху външното потребителско поведение.", "isCorrect": false }, { "text": "Събиране на количествени и качествени данни за поведението на потребителите спрямо MVP.", "rationale": "Целта е да се съберат реални данни, които да се използват в следващата фаза 'Learn' за валидиране на хипотезите.", "isCorrect": true }, { "text": "Измерване на размера на сорс кода.", "rationale": "Размерът на кода не е показател за неговата стойност за потребителя.", "isCorrect": false }, { "text": "Писане на MVP.", "rationale": "Това се случва във фазата 'Build'.", "isCorrect": false } ], "hint": "Как получавате данните (Data), които след това ще анализирате, за да се 'научите' (Learn)?" },
+            { "questionNumber": 41, "question": "В Git Flow, каква е ключовата разлика в предназначението на `master` и `develop` бранчовете?", "answerOptions": [ { "text": "`master` е за експерименти, а `develop` е за стабилен код.", "rationale": "Точно обратното е.", "isCorrect": false }, { "text": "`master` съхранява официалната история на версиите, докато `develop` служи като интеграционен бранч за нови функционалности.", "rationale": "master е отражение на продукцията, а develop е отражение на това, което ще бъде в следващата версия.", "isCorrect": true }, { "text": "Няма разлика, използват се взаимозаменяемо.", "rationale": "Те имат много строго дефинирани и различни роли в Git Flow.", "isCorrect": false }, { "text": "`master` се трие след всяка версия, а `develop` е постоянен.", "rationale": "И двата бранча са постоянни (long-running) и никога не се трият.", "isCorrect": false } ], "hint": "В кой бранч бихте погледнали, за да видите кода на версия 3.2.1, която е инсталирана при клиентите, и в кой - за да видите най-новите, все още неиздадени функционалности?" },
+            { "questionNumber": 42, "question": "Контейнеризацията, с инструменти като Docker, е ключов елемент в DevOps, защото:", "answerOptions": [ { "text": "Прави кода по-труден за разбиране.", "rationale": "Целта е да се опрости управлението на зависимостите, а не да се усложнява кодът.", "isCorrect": false }, { "text": "Заменя напълно нуждата от операционна система.", "rationale": "Контейнерите работят върху хост операционна система, но изолират приложението от нея.", "isCorrect": false }, { "text": "Създава последователни и преносими среди за приложението, от разработка до продукция.", "rationale": "Това решава проблема 'но на моята машина работи', като пакетира приложението с всичките му зависимости.", "isCorrect": true }, { "text": "Автоматично поправя бъгове в кода.", "rationale": "Docker се грижи за средата, а не за логиката на приложението.", "isCorrect": false } ], "hint": "Как можете да сте сигурни, че средата, в която тествате, е абсолютно същата като тази, в която ще работи приложението?" },
+            { "questionNumber": 43, "question": "Какво се случва по време на фазата 'Maintenance' (Поддръжка) в Waterfall модела?", "answerOptions": [ { "text": "Проектът се счита за напълно завършен и не се правят повече промени.", "rationale": "Поддръжката е най-дългата и често най-скъпата фаза от жизнения цикъл на софтуера.", "isCorrect": false }, { "text": "Коригиране на бъгове, открити в продукция, правене на подобрения и адаптиране на системата към нови изисквания.", "rationale": "Това е фазата, в която софтуерът 'живее' и еволюира след първоначалното си пускане.", "isCorrect": true }, { "text": "Само се пише документация за проекта.", "rationale": "Документацията се пише през целия процес, а поддръжката включва активни промени в кода.", "isCorrect": false }, { "text": "Екипът се разпуска и се прехвърля към нов проект.", "rationale": "Обикновено е нужен екип (или поне част от него) за поддръжка на системата.", "isCorrect": false } ], "hint": "Какво се случва със софтуера, след като е доставен на крайните потребители?" },
+            { "questionNumber": 44, "question": "Какво прави командата `git clone`?", "answerOptions": [ { "text": "Създава нов бранч.", "rationale": "За това се използва `git branch` или `git checkout -b`.", "isCorrect": false }, { "text": "Създава локално копие на отдалечено хранилище (remote repository) на вашата машина.", "rationale": "Това е първата стъпка, която правите, за да започнете работа по съществуващ проект.", "isCorrect": true }, { "text": "Слива два бранча.", "rationale": "За това се използва `git merge`.", "isCorrect": false }, { "text": "Изтрива хранилище.", "rationale": "Изтриването става ръчно чрез изтриване на директорията.", "isCorrect": false } ], "hint": "Как бихте свалили целия код на един проект от GitHub на вашия компютър?" },
+            { "questionNumber": 45, "question": "Какво е 'спринт' в методологията Scrum?", "answerOptions": [ { "text": "Дълъг период на планиране, който се случва веднъж годишно.", "rationale": "Спринтовете са кратки и се случват непрекъснато.", "isCorrect": false }, { "text": "Среща, на която се обсъждат проблемите в екипа.", "rationale": "Това е по-скоро ретроспектива (Sprint Retrospective), която е само една от срещите в рамките на спринта.", "isCorrect": false }, { "text": "Кратък, времево ограничен период (обикновено 1-4 седмици), през който се завършва определен обем работа и се създава работещ инкремент от продукта.", "rationale": "Спринтът е 'сърцето' на Scrum, представляващ един итеративен цикъл на разработка.", "isCorrect": true }, { "text": "Името на софтуера, който управлява задачите.", "rationale": "Спринтът е концепция от процеса, а не име на инструмент.", "isCorrect": false } ], "hint": "Това е основният работен цикъл в Scrum." },
+            { "questionNumber": 46, "question": "Какво е 'статичен анализ на кода' и къде се вписва в CI pipeline-а?", "answerOptions": [ { "text": "Ръчно преглеждане на кода от старши разработчик; случва се след внедряване.", "rationale": "Това е code review. Статичният анализ е автоматизиран и се случва преди внедряване.", "isCorrect": false }, { "text": "Автоматична проверка на кода за потенциални грешки, стилови проблеми и уязвимости в сигурността, без да се изпълнява кодът; обикновено се случва по време на фазата Build/Test.", "rationale": "Това е важна стъпка за поддържане на качеството и сигурността на кода, която се изпълнява рано в процеса.", "isCorrect": true }, { "text": "Тестване на производителността на приложението под натоварване; случва се в staging среда.", "rationale": "Това е performance testing, което изисква изпълнение на кода.", "isCorrect": false }, { "text": "Анализ на логовете от продукционната среда.", "rationale": "Това е част от мониторинга.", "isCorrect": false } ], "hint": "Как можете да проверите за често срещани грешки в кода, без дори да го компилирате или стартирате?" },
+            { "questionNumber": 47, "question": "С какво е свързана основно 'Ops' частта от DevOps?", "answerOptions": [ { "text": "С дизайна на потребителския интерфейс.", "rationale": "Това е задача на UI/UX дизайнерите и frontend разработчиците (Dev).", "isCorrect": false }, { "text": "С надеждността, мащабируемостта и поддръжката на софтуера в продукционна среда.", "rationale": "Ops се грижи приложението да работи стабилно, бързо и да е достъпно за потребителите.", "isCorrect": true }, { "text": "С писането на бизнес изискванията.", "rationale": "Това е част от фазата 'Plan' и обикновено се прави от Product Owner-и или бизнес анализатори.", "isCorrect": false }, { "text": "С преговорите с клиенти.", "rationale": "Това е бизнес/продажбена функция.", "isCorrect": false } ], "hint": "Кой се грижи сървърите да не паднат, когато много потребители влязат в сайта едновременно?" },
+            { "questionNumber": 48, "question": "Ако искате да видите историята на комитите за текущия си бранч, коя команда бихте използвали?", "answerOptions": [ { "text": "git status", "rationale": "Тази команда показва текущото състояние на работната директория и кои файлове са променени.", "isCorrect": false }, { "text": "git commit", "rationale": "Тази команда създава нов комит.", "isCorrect": false }, { "text": "git log", "rationale": "Тази команда показва хронологичен списък на комитите, техните автори, дати и съобщения.", "isCorrect": true }, { "text": "git rebase", "rationale": "Тази команда се използва за промяна на историята на комитите, а не за нейното разглеждане.", "isCorrect": false } ], "hint": "Търсите 'дневник' (log) на всички промени." },
+            { "questionNumber": 49, "question": "Цялата методология Lean Startup е създадена, за да минимизира:", "answerOptions": [ { "text": "Броя на разработчиците в екипа.", "rationale": "Целта не е да се намали екипът, а да се направи работата му по-ефективна.", "isCorrect": false }, { "text": "Изгубеното време и ресурси в изграждането на нещо, което клиентите не искат.", "rationale": "Чрез бързо тестване на хипотези, Lean Startup цели да избегне създаването на продукти без пазарна нужда.", "isCorrect": true }, { "text": "Количеството написан код.", "rationale": "MVP може да изисква малко код, но целта е да се минимизира *излишният* код, а не кодът като цяло.", "isCorrect": false }, { "text": "Взаимодействието с клиенти.", "rationale": "Напротив, методологията се основава на постоянно взаимодействие и учене от клиентите.", "isCorrect": false } ], "hint": "Каква е най-голямата опасност пред всеки нов продукт или бизнес?" },
+            { "questionNumber": 50, "question": "Ключов културен аспект на DevOps е:", "answerOptions": [ { "text": "Строга йерархия и разделение на отговорностите.", "rationale": "DevOps цели да премахне 'силозите' и да насърчи плоските структури и споделената отговорност.", "isCorrect": false }, { "text": "Състезание между Dev и Ops екипите за по-добри резултати.", "rationale": "Идеята е за сътрудничество, а не за състезание.", "isCorrect": false }, { "text": "Споделена отговорност и премахване на бариерите (silos) между екипите.", "rationale": "Културата на сътрудничество, в която всички се чувстват отговорни за продукта от началото до края, е в основата на DevOps.", "isCorrect": true }, { "text": "Използването на един-единствен, стандартизиран инструмент за всичко.", "rationale": "Въпреки че инструментите са важни, DevOps е гъвкав и се фокусира повече върху културата и процесите, отколкото върху конкретни инструменти.", "isCorrect": false } ], "hint": "Какво е по-важно за успешния DevOps – хората и тяхното взаимодействие или конкретните софтуерни инструменти, които използват?" }
+          ]
+        };
+        
+        // DOM Elements
+        const questionCounterEl = document.getElementById('question-counter');
+        const scoreCounterEl = document.getElementById('score-counter');
+        const progressBarEl = document.getElementById('progress-bar');
+        const questionTextEl = document.getElementById('question-text');
+        const answerOptionsEl = document.getElementById('answer-options');
+        const hintBtn = document.getElementById('hint-btn');
+        const hintBoxEl = document.getElementById('hint-box');
+        const hintTextEl = document.getElementById('hint-text');
+        const rationaleBoxEl = document.getElementById('rationale-box');
+        const rationaleTextEl = document.getElementById('rationale-text');
+        const submitBtn = document.getElementById('submit-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const resultsContainer = document.getElementById('results-container');
+        const finalScoreEl = document.getElementById('final-score');
+        const scoreMessageEl = document.getElementById('score-message');
+        const restartBtn = document.getElementById('restart-btn');
+        const geminiFeedbackEl = document.getElementById('gemini-feedback');
+        const explainFurtherBtn = document.getElementById('explain-further-btn');
+        const geminiExplanationEl = document.getElementById('gemini-explanation');
+        const analyzeBtn = document.getElementById('analyze-btn');
+        const analysisResultEl = document.getElementById('analysis-result');
+        const loadingSpinner = document.getElementById('loading-spinner');
+
+        // Quiz state
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let selectedAnswer = null;
+        let questions = [];
+        let wrongAnswers = [];
+
+        // --- Gemini API Function ---
+        async function callGemini(prompt, retries = 3, delay = 1000) {
+            loadingSpinner.classList.remove('hidden');
+            const apiKey = ""; // Canvas provides this automatically
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+            };
+
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    const candidate = result.candidates?.[0];
+
+                    if (candidate && candidate.content?.parts?.[0]?.text) {
+                        loadingSpinner.classList.add('hidden');
+                        return candidate.content.parts[0].text;
+                    } else {
+                         // Check for safety ratings blocking the response
+                        if (candidate && candidate.finishReason === 'SAFETY') {
+                            console.error("Gemini response blocked due to safety settings.");
+                            loadingSpinner.classList.add('hidden');
+                            return "Отговорът беше блокиран поради настройки за безопасност.";
+                        }
+                        throw new Error("Invalid response structure from Gemini API.");
+                    }
+                } catch (error) {
+                    console.error(`Attempt ${i + 1} failed:`, error);
+                    if (i < retries - 1) {
+                        await new Promise(res => setTimeout(res, delay));
+                        delay *= 2; // Exponential backoff
+                    } else {
+                        loadingSpinner.classList.add('hidden');
+                        return "Възникна грешка при връзката с AI. Моля, опитайте отново по-късно.";
+                    }
+                }
+            }
+        }
+
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function startQuiz() {
+            currentQuestionIndex = 0;
+            score = 0;
+            selectedAnswer = null;
+            wrongAnswers = [];
+            questions = shuffle([...quizData.questions]);
+            
+            document.getElementById('quiz-container').classList.remove('hidden');
+            document.getElementById('quiz-header').style.display = 'block';
+            document.getElementById('quiz-body').style.display = 'block';
+            document.getElementById('feedback-section').style.display = 'block';
+            document.getElementById('quiz-footer').style.display = 'flex';
+            resultsContainer.classList.add('hidden');
+            
+            loadQuestion();
+        }
+
+        function loadQuestion() {
+            resetState();
+            const currentQuestion = questions[currentQuestionIndex];
+            
+            questionCounterEl.textContent = `Въпрос ${currentQuestionIndex + 1} / ${questions.length}`;
+            scoreCounterEl.textContent = `Резултат: ${score}`;
+            progressBarEl.style.width = `${((currentQuestionIndex + 1) / questions.length) * 100}%`;
+            
+            questionTextEl.textContent = currentQuestion.question;
+            
+            currentQuestion.answerOptions.forEach((option, index) => {
+                const button = document.createElement('button');
+                button.innerHTML = option.text;
+                button.dataset.correct = option.isCorrect;
+                button.classList.add('answer-option', 'w-full', 'p-4', 'border-2', 'rounded-lg', 'text-left', 'bg-slate-100', 'hover:bg-slate-200', 'border-slate-200');
+                button.addEventListener('click', () => selectAnswer(button, option));
+                answerOptionsEl.appendChild(button);
+            });
+
+            hintTextEl.textContent = currentQuestion.hint;
+        }
+
+        function resetState() {
+            while (answerOptionsEl.firstChild) {
+                answerOptionsEl.removeChild(answerOptionsEl.firstChild);
+            }
+            selectedAnswer = null;
+            submitBtn.classList.remove('hidden');
+            nextBtn.classList.add('hidden');
+            hintBoxEl.classList.add('hidden');
+            rationaleBoxEl.classList.add('hidden');
+            geminiFeedbackEl.classList.add('hidden');
+            geminiExplanationEl.classList.add('hidden');
+            explainFurtherBtn.disabled = false;
+            explainFurtherBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+
+        function selectAnswer(button, option) {
+            if (submitBtn.classList.contains('hidden')) return; // Don't allow changing answer after submit
+            
+            Array.from(answerOptionsEl.children).forEach(btn => {
+                btn.classList.remove('selected');
+            });
+
+            button.classList.add('selected');
+            selectedAnswer = { button, option };
+        }
+
+        function handleSubmit() {
+            if (selectedAnswer === null) {
+                alert('Моля, изберете отговор!');
+                return;
+            }
+
+            const isCorrect = selectedAnswer.option.isCorrect;
+            const correctButton = Array.from(answerOptionsEl.children).find(btn => btn.dataset.correct === 'true');
+
+            Array.from(answerOptionsEl.children).forEach(btn => {
+                btn.disabled = true;
+            });
+            
+            if (isCorrect) {
+                score++;
+                selectedAnswer.button.classList.add('correct');
+                scoreCounterEl.textContent = `Резултат: ${score}`;
+            } else {
+                selectedAnswer.button.classList.add('incorrect');
+                correctButton.classList.add('correct');
+                wrongAnswers.push(questions[currentQuestionIndex]);
+            }
+            
+            const selectedOptionData = questions[currentQuestionIndex].answerOptions.find(o => o.text === selectedAnswer.button.innerText);
+            rationaleTextEl.innerHTML = `<strong>Обяснение:</strong> ${selectedOptionData.rationale}`;
+            rationaleBoxEl.classList.remove('hidden');
+
+            submitBtn.classList.add('hidden');
+            nextBtn.classList.remove('hidden');
+            hintBoxEl.classList.add('hidden');
+            geminiFeedbackEl.classList.remove('hidden');
+        }
+
+        function handleNext() {
+            currentQuestionIndex++;
+            if (currentQuestionIndex < questions.length) {
+                loadQuestion();
+            } else {
+                showResults();
+            }
+        }
+        
+        function getScoreMessage(percentage) {
+            if (percentage === 100) return "Отлично! Познавате всичко в детайли. Истински DevOps гуру!";
+            if (percentage >= 80) return "Много добър резултат! Познанията ви са на високо ниво.";
+            if (percentage >= 60) return "Добър резултат! Имате солидна основа, но има още какво да се научи.";
+            if (percentage >= 40) return "Не е зле, но имате пропуски в основни концепции. Продължавайте да учите!";
+            return "Резултатът ви показва, че имате нужда от още учене. Не се отказвайте!";
+        }
+
+        function showResults() {
+            document.getElementById('quiz-header').style.display = 'none';
+            document.getElementById('quiz-body').style.display = 'none';
+            document.getElementById('feedback-section').style.display = 'none';
+            document.getElementById('quiz-footer').style.display = 'none';
+            geminiFeedbackEl.classList.add('hidden');
+
+            const scorePercentage = Math.round((score / questions.length) * 100);
+            finalScoreEl.textContent = `${score} / ${questions.length} (${scorePercentage}%)`;
+            scoreMessageEl.textContent = getScoreMessage(scorePercentage);
+            resultsContainer.classList.remove('hidden');
+            
+            analyzeBtn.disabled = false;
+            analyzeBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            analysisResultEl.classList.add('hidden');
+        }
+        
+        async function handleExplainFurther() {
+            explainFurtherBtn.disabled = true;
+            explainFurtherBtn.classList.add('opacity-50', 'cursor-not-allowed');
+
+            const currentQuestion = questions[currentQuestionIndex];
+            const questionText = currentQuestion.question;
+            const correctAnswer = currentQuestion.answerOptions.find(opt => opt.isCorrect).text;
+
+            const prompt = `Act as a helpful tutor. Explain in simple terms and in BULGARIAN why the following answer is correct for the given question. Provide more context on the topic. Keep the explanation concise, around 2-4 sentences.
+            
+            Question: "${questionText}"
+            Correct Answer: "${correctAnswer}"`;
+
+            const explanation = await callGemini(prompt);
+            
+            geminiExplanationEl.innerHTML = explanation.replace(/\* (.*?)\n/g, '<li>$1</li>').replace(/\n/g, '<br>').replace(/(\*\*|__)(.*?)\1/g, '<strong>$2</strong>');
+            geminiExplanationEl.classList.remove('hidden');
+        }
+
+        async function handleAnalysis() {
+            analyzeBtn.disabled = true;
+            analyzeBtn.classList.add('opacity-50', 'cursor-not-allowed');
+
+            if (wrongAnswers.length === 0) {
+                analysisResultEl.innerHTML = "<h3>Поздравления!</h3><p>Нямате грешни отговори за анализиране. Справяте се отлично!</p>";
+                analysisResultEl.classList.remove('hidden');
+                return;
+            }
+
+            const wrongQuestionsText = wrongAnswers.map((q, i) => 
+                `Грешка ${i + 1}:\nВъпрос: "${q.question}"\nПравилен отговор: "${q.answerOptions.find(opt => opt.isCorrect).text}"`
+            ).join('\n\n');
+
+            const prompt = `Act as a helpful DevOps tutor. I have taken a quiz and made some mistakes. Based ONLY on the mistakes listed below, please analyze my weak areas. 
+            
+            My mistakes are:
+            ${wrongQuestionsText}
+
+            Please provide a summary in BULGARIAN of the top 2-3 topics I should study more. For each topic, give a brief, encouraging explanation of why it's important. Format the output with markdown headings for each topic.`;
+
+            const analysis = await callGemini(prompt);
+
+            analysisResultEl.innerHTML = analysis.replace(/\n/g, '<br>').replace(/(\*\*|__)(.*?)\1/g, '<strong>$2</strong>').replace(/### (.*?)(<br>|$)/g, '<h3 class="font-bold text-lg mt-4 mb-2">$1</h3>');
+            analysisResultEl.classList.remove('hidden');
+        }
+
+
+        // Event Listeners
+        submitBtn.addEventListener('click', handleSubmit);
+        nextBtn.addEventListener('click', handleNext);
+        hintBtn.addEventListener('click', () => {
+            hintBoxEl.classList.toggle('hidden');
+        });
+        restartBtn.addEventListener('click', startQuiz);
+        explainFurtherBtn.addEventListener('click', handleExplainFurther);
+        analyzeBtn.addEventListener('click', handleAnalysis);
+
+        // Initial Load
+        startQuiz();
+    </script>
+</body>
+</html>
+
