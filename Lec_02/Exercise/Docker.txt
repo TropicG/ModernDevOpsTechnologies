@@ -1,0 +1,198 @@
+* Terminology 
+
+	Docker container is an isolated, runnable environment that holds everything needed to run an application.
+	
+	Docker image is a lightweight standalone package that contains all necessary code, librarires and dependencies to run an application 
+	
+	Docker daemon is the background service running on the host that manages building, running nad distributing Docker containers 
+	Docker client is the command line tool that allows the user to interact with the Docker daemon 
+	Docker Hub is a docker registry of Docker images, basically a directory of all available Docker images 
+	
+* Startign a Docker container 
+
+	This comamnd is the main way to create and start a new Docker container from an image
+	docker run 
+	
+	In one go, it does the following:
+	- Checks for the image on your local mashine 
+	- Pulls the image (downloads it) from a registry like Docker Hub if it is not found locally 
+	- Creates a new container based on that image 
+	- Starts the container, running the default process or a command you specify 
+
+	A docker image is a read-only template that contains everything needed to run an application 
+
+* Pulling an image from Docker registry 
+
+	This commands allows you to dowload a Docker image from a registry (like Docker Hub) to your local machine:
+	docker pull 
+	
+	Remmber it only downloads the image it doesnt create or start a container
+	
+	For example this will download the alpine image (more secure ubuntu distro) from the Docker registry: git pull alpine 
+	
+	To see all the images that are installed on your local machine use:
+	docker image ls 
+	
+* Using commands from docker 
+
+	If you use this command: docker run alpine echo "hello from alpine" i
+	The provided command was started by Docker.
+	
+	Sometimes you will need to start from the Docker some interactive shells, so use -it, eitherwise nothing will happen:
+	docker run -it alpine /bin/sh 
+	(-it stands for --interactive)
+	
+* Stopping a container 
+
+	To stop a container use this command 
+	docker stop <CONTAINER ID>/<NAME>
+	(You can get information about a container when using docker ps)
+	
+	This is how to force stop a container 
+	docker kill <CONTAINER ID>/<NAME>
+	
+* Auto removing container after use 
+
+	In order to check what containers are taking up space try running:
+	docker container ls -as 
+	
+	Use this command to tell the Docker daemon to remove the container once stopped with this command:
+	docker run --rm -it alpine 
+	It is useful to run this command since every time you run an image a new container will be created and it will take space and resources, even if they are minimal
+	
+* Cleaning up containers that are not used anymore 
+
+	Even when they are stopped, containers are still persisted, so if you want to delete them from your suerver use:
+	docker rm <CONTAINER ID>/<NAME>
+	(Even you see what are you current containers with "docker container ls -a" you will se their container ids and their names)
+	
+	If you want to remove all the containers/images/network/volume 
+	docker container/image/network/volume prune 
+	
+	If you want to delete everything 
+	docker system prune 
+	
+* Deleting images 
+
+	Lets say we have deleted the container that used our image, but on a second though we do not what to have the image as well
+	
+	This commands will list all the downloaded images on your computer:
+	docker images ls 
+	
+	To remove the image use:
+	docker image rm <IMAGE ID>
+	(you will get the IMADE ID when you check the wanted image's id from "images ls")
+	
+* Setting up a basic web server 
+
+	The idea here is to create a websebserver (Nginx) to serve as a static HTML website (Note: remember if you dont have it locally pull it from Docker Hub)
+	
+	This command will start a container from the nginx image
+	docker run -p 8080:80 nginx 
+	(By default containers are isolated from your computer's network, even if a web server is running on port 80 inside the container, you cant access it from your computer's browser)
+	(-p in fact connects your computer's port 8080 to the container's port 80)
+	
+	In order words, -p is the "bridge" that connects a port on your host machine to a port inside the container 
+	
+* Runing a server in the terminal 
+
+	In order to start a container in the background of our terminal 
+	docker run -p 8080:80 -d nginx (after this operation it will print out the ID of the container)
+	
+* Executing processes in your container 
+
+	If you want to examine a running container, but do not want to disturb the runing process you can execute another processs inside the container with exec 
+	This could be a shell, or a script of some sort.
+	
+	To step into a new container by executing a bash shell inside the container 
+	docker exec -it <CONTAINER_NAME> bash
+	(This will open you the therminal and you could do whatever you want inside, it is usefull for downloading stuff for the disto from apt-get)
+	(If you want to change the html for the server, download nano with apt-get update && apt-get install -y nano)
+
+* Introduction to Volumes 
+
+	Docker containers are designed to be temporary, meaning when you delete a container, all the data inside it is lost 
+	This is a problem for applications like databases that need to save data permanently, so to solve this the data must be stored on the host computer
+	Docker provides two ways to do this:
+		- bind mounts 
+		- volumes 
+		
+	* Bind mount 
+	
+		A bind mount is the simpler way to save Docker data.
+		The process consists of directly mapping a specific folder from you computer (the host) to a folder inside the container:
+		- Pro: It is easy to understand and gives you direct access to the files on your host 
+		- Con: It is not very portable, because the folder path can be different on another person's computer 
+	
+	* Docker Volumes 
+	
+		Docker Volumes are known for:
+		- Volumes are managed by Docker itself and store data on the host machine 
+		- The data persists even if you delete the container 
+		- They can be named or anonymous 
+		
+		There are different ways to create them:
+		- Manually, using the command: docker volume create <volume_name>
+		- On-the-fly (named), by providing a name using docker run command: docker run -v DataVolume:/opt/app/data 
+		- On-the-fly (Anonymous): ny only specifiying the container path, for example: -v /apt/app/data 
+		
+* Setting up Docker Volume 
+
+	We are going to create a docker volume using: docker volume create data 
+	In order to check what are the volumes in the container we can use: docker volume ls 
+	
+	We do not specifiy where the data is going to be stored on the host, but we can check it with this command:
+	docker volume inspect data (your are going to see json file and the field "mountpoint" will hold the directory of the location of the volume)
+	
+	We are going to mount the volume to a container we are about to start:
+	docker container run --rm --name www -d -p 8080:80 -v data:/usr/share/nginx/html nginx 
+	(--rm is going to delete the container if it is stopped, -d makes it run in background mode, -p for setting up morts, -v for mounting a volume with a name)
+	
+	Multiple containers are allowed to attached to the same volume with data, but Docker doesnt handly any file locking, so gotta be carefull.
+	
+* What exactly is an image 
+	
+	Chances are if you want to use Docker for your own application, you will have to construct an image on your own 
+	
+	A Dockerfile is a text file containing a list of commands that the Docker daemo calls while creating an image.
+	The Dockerfile contains all the information that Docker needs to know to run the app, basically:
+		- a base Docker image to run from 
+		- location of your project code 
+		- any dependencies it has 
+		- what commands to run at start-up 
+		
+* Commands used when writting a DockerFile 
+
+	You are going to encounter these commands when writting a docker file:
+		- FROM: this specifies the base (parent) image to start building from (for example: FROM ubuntu)
+		- RUN: executes a command durring the build of the image, like installing software (for example: RUN apt-get install -y nginx)
+		- ADD and COPY: copies files from your computer into the image 
+		- CMD: sets the default command to run when a container starts.
+		- EXPOSE: configuration on which port the container listens on 
+		- ENTRYPOINT: sets the main command to run when a container starts, it is often used with CMD 
+		
+* Example for creating a DockerFile 	
+
+		We are creating a simple DockerImage for a Python program, check PythonImage.dockerfile
+		
+* Building and running the image 
+
+	This simple command with build your image and it will give it a name 
+	docker build -t myfirstapp .
+	(-t means tag like a name, . means that we are in the directory of the dockerfile)
+	(If you dont have the ubuntu:22.04 image, the clinet will pull the image and then create the image from the dockerfile)
+	
+	To run the newly created image just use:
+	docker run -p 8080:5000 --name myfirstapp myfirstapp 
+
+* Layers of an image 
+
+	A Docker image is build in layers, think of a lyaer as a single change or step in the build process.
+	Every time you use a RUN, COPY or ADD or similar command in the Dockerfile, you are adding a new, permanent layer to the image 
+	
+* Deleting an image 
+	
+	In order to delete an image, you first must to do:
+	- remove the container
+	- remove the image file as well with the image rm command 
+	
