@@ -28,7 +28,7 @@
 	
 	Remmber it only downloads the image it doesnt create or start a container
 	
-	For example this will download the alpine image (more secure ubuntu distro) from the Docker registry: git pull alpine 
+	For example this will download the alpine image (more secure ubuntu distro) from the Docker registry: docker pull alpine 
 	
 	To see all the images that are installed on your local machine use:
 	docker image ls 
