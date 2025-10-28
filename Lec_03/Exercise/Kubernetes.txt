@@ -1,0 +1,206 @@
+* Create a namespace called 'mynamespace' and a pod with image nginx called nginx on this namespace 
+
+    This is two-part task:
+    - create a logical grouping arae (a namespace) called mynamespace
+    - create a single running container (a pod) named nginx, using nginx software image and place it inside mynamespace namespace
+
+    kubectl create namespace mynamespace
+    (create namepace): This tells Kubernetes to create a new names. Namespaces are a way to divide cluster resources between multiple users or teams
+    (mynamespace): is the name given to that namespace
+
+    kubectl run nginx --image=nginx --restart=Never -n mynamespace
+    (kubectl run nginx): This is the action to create a new resource, nginx is the name given to this new resource (in this case, the pod)
+    (--image=nginx): This flag specifies which container image to use, it pulls the official nginx web server image (prob from DockerHub)
+    (--restart=Never): by default kubectl might create a Deployment (which manages pods), settings this flag tells Kubernetes to create a single, standalone Pod object
+    (-n mynamespace): it tells kubectl where to create the pod, without this it would have created it into the default namespace 
+
+* Create the pod that was just described using YAML 
+
+    This method first generates a "blueprint" (the YAML file) and then tells Kubernetes to build that what is in that blueprint 
+
+    kubectl run nginx --image=nginx --restart=Never --dry-run=client -n mynamespace -o yaml > pod.yaml
+    - NOTE: THIS COMAND GENERATES THE YAML FILE AND IT DOES NOT CREATE THE POD
+    (--dry-run=client): it tells kubectl "Dont actually create anything in the cluster, just figure out the configuration you would use"
+    (-o yaml): this flag means --output=yaml it tells kubectl to print the configuration it generated in YAML format 
+    (> pod.yaml): this is basic shell redirect, it takes the YAML output (which would go to the screen) and saves it into a file named pod.yaml
+
+    Check pod.yaml to see what is inside:
+    (kind: Pod): specified the type of Kubernetes object
+    (metadata: ): contains data about the object like name and in which namespace it will be created
+    (spec: ): hold the specification for the pod like its containers what images will they have
+
+    kubectl create -f pod.yaml
+    (-f pod.yaml): The -f flag tells kubectl to read the resource definition of the yaml file
+
+* Create a busybox pod (using kubectl command) that runs the command "env". Run it and see the output
+
+    The objective is to create a pod using the busybox image, its job is to execute a single command env (which lists all environment vairables) and show the result
+
+    Method I: Interactive and Auto-Remove
+    kubectl run busybox --image=busybox --command --restart=Never -it --rm -- env
+    (kubectl run busybox --image=busybox): creates a pod named busybox using the busybox image
+    (--command): this flag tells Kubernetes not to run the image's default command. but to run the command that follows
+    (--restart=Never): Ensure it creates a singled Pod, not a Deployment
+    (-it): This is short for --interactive, it connects your terminal directly to the pod's input/output, this is what allows you to see the output live 
+    (--rm): This means remove pod, as soon as teh command finished and you disconnect, Kubernetes will automatically delete the pod
+    (--): this double-dash seperates the kubectl flags from the command you want to run inside the pod
+    (env): The actual command the pod will run
+    # In Short: This command runs the evn command in a temporaru pod and streams the output directly to your terminal. The pod is deleted immediately after
+    
+    Method II: Create Pod, Then Check Logs
+    kubectl run busybox --image=busybox --restart=Never --command -- env
+    - Without -it, the command runs in the background, meaning the pod starts, runs env and the pod's status is changed to Completed
+    - Without --rm, the pod is not deleted, it remains in the Completed state
+    kubectl logs busybox
+    - Since the pod still exists, you can use this command to fetch its logs
+    - The "logs" for this pod will simply be the standard output from the env command it ran
+    #In short: This method creates a pod, let it finish its job, and then you use a seperate command to retrieve the output (the logs) from the completed pod
+
+* Create a busybox pod (using YAML) that runs the command "env". Run it and see the output
+
+    The aim is to create a busybox pod by first defining it in a YAML file, then creating it, and finally checking its ouput
+
+    kubectl run busybox --image=busybox --restart=Never --dry-run=client -o yaml --command -- env > envpod.yaml
+    - Most of the stuff here is already known by now so you would have problems inderstanding this command
+    #In short: This command generates the yaml file that will be used in order to create a pod
+
+    kubectl apply -f envpod.yaml
+    - This command tells Kubernetes to read the yaml file and then Kubernetes creates the pod. Once it is started it runs the env command and pod's status is set to Completed
+
+    kubectl logs busybox
+    - This command fetches the logs from the busybox pod, the log are the output of the env command
+
+* Get the YAML for a new namespace called 'myns' without creating it
+
+    The objective is to see the YAML "blueprint" for a namespace named myns, not to create the namespace in the cluster 
+
+    kubectl create namespace myns -o yaml --dry-run=client
+    (kubectl create namespace myns): This is the base command that would normally create us a namespace called myns
+    (--dry-run=client): it instructs kubectl to only perform the operation on the client-side (your local machine) and not send the creation request to the Kubernetes cluster
+
+* Create the YAML for a new ResourceQuota called 'myrq' with hard limits of 1 CPU, 1G memory and 2 pods without creating it
+
+    A ResourceQuota is a Kubernetes object that provides constraints to limit the ttoal amount of resources (like CPU, memory or other stuff) that can be used within a specific namespace
+
+    kubectl create quota myrq --hard=cpu=1,memory=1G,pods=2 --dry-run=client -o yaml 
+    (kubectl create quota myrq): this is the base command to create a ResourceQuota object named myrq
+    (--hard=cpu=1,memory=1G,pods=2): this flag sets the hard limits for the quota
+    (-o yaml): Remember it means that it will output on the console what are the contests of the yaml file if we dont specify to which file 
+
+* Get pods on all namespaces
+
+    This command list all the pods running in every namespace of your Kubernetes cluster
+    kubectl get po -all-namespace
+
+    kubectl get pods
+    By default only shows pods in your current namespace 
+
+* Create a pod with image nginx called nginx and expose traffic on port 80
+
+    kubectl run nginx --image=nginx --restart=Never --port=80
+    (--port=80): This flag adds information to the pod's definition, specifiying that the container inside is listening on port 80
+
+    This commands only creates the pod and sets the containerPort to 80, to truly expose it to traffic, you would need to create a Service 
+* Change pod's image to nginx:1.24.0. Observe that the container will be restarted as soon as the image gets pulled
+
+    The objective is to change the Nginx image of a running pod (for example nginx) from its current version to a new specific one (for example nginx:1.24.0)
+    A key part of this is to observe that Kubernetes handles this change by restarting the container
+
+    kubectl set image pod/nginx nginx=nginx:1.24.0
+    (kubectl set image): This is the action it is used to update the image of a Kubernetes resource 
+    (pod/nginx): This is the target, it tells kubectl to find the pod named nginx
+    (nginx=nginx:1.2.4) this specifies the change 
+    # In short: Kubernetes find the pod named nginx looks inside it for a container also named nginx and change its imgae to nginx:1.24.0
+
+    There are thrw ways to verify that the change happened and that the container restarted
+    - kubectl get po nginx -w
+    (-w) streams the pod's status to your terminal in real-tiem
+    Here you would see the pod's STATUS change from Running to Terminatin, then ContainerCreating and finally back to Running
+    The RESTARTS count would also increase 
+
+    - kubectl describe po nginx
+    This command shows detailed information and most importantly an Events log at the bottom
+
+    The third way is very confusing 
+
+* Get pod's YAML
+
+    kubectl get po nginx -o yaml 
+
+* Get information about the pod, including details about potential issues (e.g. pod hasn't started)
+
+    kubectl describe po nginx 
+
+* Get pod logs 
+
+    kubectl logs nginx 
+
+* If pod crashed and restarted, get logs about the previous instance
+
+    kubectl logs nginx -p
+
+* Execute a simple shell on the nginx pod 
+
+    kubectl exec -it nginx -- /bin/sh 
+    (kubectl exec): This is the action, it tell Kubernetes you want to execute a command in a conteiner
+    (--): It tells kubectl that all arguments after this point are the command to be executed, not kubectl flags
+    (/bin/sh): This is the command we want to run inside the pod, this directory is the path to a basic shell
+    Running this command effectively starts a new shell session insde the nginx container, giving a command prompt 
+
+* Create a busybox pod that echoes 'hello world' and then exits
+
+    The object is to create a temporary pod that runs a single command (echo 'hello world') and then stops
+
+    kubectl run busybox --image=busybox -it --restart=Never -- echo 'hello world'
+    
+* Do the same, but have the pod deleted automatically when it's completed
+
+    The objective is to run the same echo 'hello world' command from the previous example, but this time, ensure the pod is automatically deleted as soon as the command finishes.
+
+    kubectl run busybox --image=busybox -it --rm --restart=Never -- /bin/sh -c 'echo hello world'
+    (--rm): this flag instructs kubectl to automatically delete this pod as soon as it exits (in our case as soon as the echo command completes)
+
+    To verify we can use the command kubectl get po to see all the pods in the current namespace
+    Running this command will show you that busybox pod will be missing from the list because it was automatically deleted because of --rm flag 
+
+* Create a Pod with two containers, both with image busybox and command "echo hello; sleep 3600". Connect to the second container and run 'ls'
+
+    This is more advanced Kubernetes task which consists of creating a single pod that runs multiple containers and then interacting with a specific container inside that pod 
+
+    A pod can hold more than one container, this is often used when a helper container (like a logger or proxy) needs to run alongside the main application container
+    Since kubectl run cannot directly create a pod with two containers, this guide shows the standard workaround:
+    - generate a YAML file for one container, manually edit it to add the second and then create the pod from that file
+
+    kubectl run busybox --image=busybox --restart=Never -o yaml --dry-run=client -- /bin/sh -c 'echo hello;sleep 3600' > pod.yaml
+    # This command does not create a pod, it acts as a 'YAML generator'
+
+    After this you owuld have to visit with vi pod.yaml and insde the file, find the containers: section
+    To add the second container, you simply copy and paste the entire block for the first container and change its name.
+
+    Before:
+    spec:
+        containers:
+        - args:
+        - /bin/sh
+        - -c
+        - echo hello;sleep 3600
+        image: busybox
+        name: busybox  # <-- First container
+
+    After: 
+    spec:
+        containers:
+        - args:
+        - /bin/sh
+        - -c
+        - echo hello;sleep 3600
+        image: busybox
+        name: busybox  # <-- First container
+        - args:
+        - /bin/sh
+        - -c
+        - echo hello;sleep 3600
+        image: busybox
+        name: busybox2 # <-- Second container (pasted and renamed)
+
+    kubectl create 
