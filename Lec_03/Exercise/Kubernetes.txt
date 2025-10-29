@@ -174,7 +174,7 @@
     kubectl run busybox --image=busybox --restart=Never -o yaml --dry-run=client -- /bin/sh -c 'echo hello;sleep 3600' > pod.yaml
     # This command does not create a pod, it acts as a 'YAML generator'
 
-    After this you owuld have to visit with vi pod.yaml and insde the file, find the containers: section
+    After this you would have to visit with vi pod.yaml and insde the file, find the containers: section
     To add the second container, you simply copy and paste the entire block for the first container and change its name.
 
     Before:
@@ -203,4 +203,40 @@
         image: busybox
         name: busybox2 # <-- Second container (pasted and renamed)
 
-    kubectl create 
+    kubectl create -f pod.yaml
+    # This command reads you new pod.yaml file and creates the pod (name busybox) with both containers (busybox and busybox2)
+
+    kubectl exec -it busybox -c busybox2 -- /bin/sh 
+    # This is how you are connecting to a specific container
+    (kubectl exec -it busybix): Connects to the pod named busybox
+    (-c busybox2): this is short for --container=busybox2 and tells kubectl to connect to the container with name busybox2
+    (-- /bin/sh): Runs a shell inside the specific computer
+    #Once you have ran this command you can execute ls inside the container's console and see the output
+
+    kubectl exec -it busybox -c busybox2 -- ls 
+    #This is the equivalent command as above just shorter 
+
+* Create a pod with an nginx container exposed on port 80, then create init container busybox, create a volume that both the containers have acces to it
+
+    # Okay, this is more complex problem here is everything you have to do
+    - Create a pod with an nginx container exposed on port 80
+    - Add a busybox init container which downloads a page using 'echo "Test" > /work-dir/index.html'
+    - Make a volume of type emptyDir and mount it in both containers
+    - For the nginx container, mount it on "/usr/share/nginx/html" and for the initcontainer, mount it on "/work-dir"
+    - When done, get the IP of the created pod and create a busybox pod and run "wget -O- IP"
+
+   # An Init Container is a special container in a Kubernetes pod that runs to completion before the main application containers starts
+
+   kubectl run box --image=nginx --restart=Never --port=80 --dry-run=client -o yaml > pod-init.yaml
+   # This command will generate our yaml file and in this yaml file we are going to configurate it additionally
+   # This what the final yaml will have to look like check pod-init.yaml (keep in mind we need to add those initContainers and volumes parts)
+    
+   kubectl apply -f pod-init.yaml
+   # This creates the box pod in the cluster and Kubernetes automatically runs the initContainer to completion before the main nginx
+
+   kubectl get po -o wide
+   # This commands gets the internal cluster's IP
+
+   kubectl run box-test --image=busybox --restart=Never -it --rm -- /bin/sh -c "wget -O- $(kubectl get pod box -o jsonpath='{.status.podIP}')"
+   # This is the verification, it launches a new, temporary pod (box-test) and from inside that pod, it uses wget to request the webpade from the box pod's IP 
+
