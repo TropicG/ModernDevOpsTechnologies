@@ -240,3 +240,147 @@
    kubectl run box-test --image=busybox --restart=Never -it --rm -- /bin/sh -c "wget -O- $(kubectl get pod box -o jsonpath='{.status.podIP}')"
    # This is the verification, it launches a new, temporary pod (box-test) and from inside that pod, it uses wget to request the webpade from the box pod's IP 
 
+* Create 3 pods with names nginx1,nginx2,nginx3. All of them should have the label app=v1
+
+    # Labels are essential for organizing resources and allowing them to be selected later 
+
+    kubectl run nginx1 --image=nginx --restart=Never --labels=app=v1
+    kubectl run nginx2 --image=nginx --restart=Never --labels=app=v1
+    kubectl run nginx3 --image=nginx --restart=Never --labels=app=v1
+    (--labels=app=v1): This applies a metadata "tag" or lable to the pod, in this case the label's key is app and its value is v1
+
+* Show all labels of the pods
+
+    kubectl get po --show-labels
+    (get): The action to retrive information about a resources
+    (po): This is a alias for resource type pods
+    (--show-labels): By default kubectl get po lists pods but does not show their labels, adding this flag adds an extra column in the output called Labels which lists 'key=value' pairs 
+
+* Change the labels of pod 'nginx2' to be app=v2
+
+    Method I: Using kubectl label command
+    kubectl label po nginx2 app=v2 --overwrite
+    (kubectl label): this command is specifically used to add, update or remove labels from resources
+    (po nginx2): This specifies the resource type (po for pod) and the resource name nginx2
+    (app=v2): this is the new label we want to apply 
+    (--overwrite): Kubernetes does not allows two labels with the same key, thus this flags tells Kubernetes it is okay to overwrite the existing value of the app label with new one 
+
+    Method II: The manual kubectl edit command 
+    kubectl edit po nginx2
+    # This command opens the YAML configuration of the nginx2 pod 
+    # The user would then manually have to find the metadata:section and withing that the labels: section
+    # the labels: section should be changed from app:v1 to app:v2
+    # After saving and closing the file, kubectl automatically aplpies the changes to the pod in the cluster 
+
+* Get the label 'app' for the pods (show a column with APP labels) 
+
+    kubectl get po -L app
+    (kubectl get po): This is the standard command to get all pods 
+    (-L app): this is a short flag for --label-colums, it tells kuberctl to add a new column to the output adn the colum name will be APP and the values will be corresponding for each pod 
+
+    kubectl get po --label-colums=app
+    # The same command as above just more longer 
+
+* Get only the 'app=v2' pods
+
+    # The objective is to filter the entier list of pods and see only the ones that match the specific label app=v2
+
+    Method I: The short flag 
+    kubectl get po -l app=v2
+    (kubectl get po): this gets all pods
+    (-l app=v2): this is the label selectro flag, -l means --selector and app=v2 is the query, Kubernetes will return the resource where the label key app=v2
+
+    Method II: The long flag (equality-based)
+    kubectl get po --selectr=app=v2
+    (--selectro=app=v2): this is equal to (-l app=v2) it is just the longer form 
+
+* Get 'app=v2' and not 'tier=frontend' pods 
+
+    # The objective here is to find pod with label app=2 and must not have the label tier=frontend
+
+    kubectl get po -l app=v2,tier!=frontend # shorter form
+    kubectl get po --selectro=app=v2,tier!=frontend #longer form
+    (kubectl get po): get all pods
+    (-l or --selector): this is the flag for applying a label selector, -l is just short for --selector 
+    (app=v2,tier!=frontend): this is the query, the first condition wants labels with app=v2, the second doesnt want labels with tier=frontend
+
+* Add a new label tier=web to all pods having 'app=v2' or 'app=v1' labels
+
+    # The objective is to add a new label (tier=web) to specific group of pods
+    
+    kubectl label po-l "app in(v1,v2)" tier=web
+    (kubectl label): this is the commmand used to add, update or remove labels from resources
+    (po): this specifies the resource type, which is pods
+    (-l "app in (v1,v2)): thi is the label selector which filters which pods the command should apply to, this tells kubectrl to find all pdos where the value of the app labels is in the set (v1,v2)
+    (tier=web): this is the new label that will be added to all the pods that were matched by the selector 
+
+* Create a deployment with image nginx:1.18.0, called nginx, having 2 replicas, defining port 80 as the port that this container exposes (don't create a service for this deployment)
+
+    # In Kubernetes, a Deployment is a resource object that provides "declarative" instructions for managing a set of identical pods
+    # Deployment is like a manager of an application, you just give it a "declarative" YAML file describing the desired state wanted
+    # Basically a Deployment main job is to manage the complete lifecycle of an application's pods, it does this by controlling another object called a ReplicaSet 
+    # A ReplicaSet is a Kubernetes object whose only job is to ensure that a specified number of identical pods are running at all times
+    # If a pod crashes or is deleted, the ReplicaSet's controller immediately creates a new one to replace it, guaranteeing high availability and the desired pod count
+
+    Method I: The YAML file method 
+
+    kubectl create deployment nginx --image=nginx:1.18.0 --dry-run=client -o yaml > deploy.yaml 
+    # This command will create a deploy.yaml file in the directory you have ran the command
+    (--dry-run=client -o yaml): This tells kubectl to generate the YAML for the command without sending it to the cluster 
+
+    After that open the yaml file and change a few stuff:
+    - change 'replicas: 1' to 'replicas: 2'
+    - add a 'ports:' section with 'containerPort: 80'
+
+    # This command applies your changes
+    kubectl apply -f deploy.yaml
+    (kubectl apply -f deploy.yaml): this takes the final YAML file and creates the resources in the cluster 
+
+
+    Method II: The direct command Method
+    kubectl create deployment --image=nginx:1.18.0 --replicas=2 --port=80
+    (kubectl create deployment nginx): creates a deployment named nginx
+    (--image=nginx:1.18.0): this sets the image
+    (--replicas=2): directly sets the replica count to 2
+    (--port=80): directly exposes port 80 on the container 
+
+* View the YAML of this deployment
+
+    kubectl get deploy nginx -o yaml 
+    (get deploy nginx): This is the command to retrieve or get the deployment resource named nginx, deploy is short for deployment 
+    (-o yaml): This is the output formatting flag, this tells kubectrl to print the entire configuration of the fetched resource in YAML format 
+
+* Get the YAML for one of the pods
+
+    # This is a common two-step process because pods that are part of a Deployment have unique, randomly generated names (like nginx-7bf7478b77-gjzp8)
+    # First we have to find the pod's full name and then get its YAML configuration 
+    
+    kubectl get po
+    # This lists all the pods in the namespace and look for a pod name that starts with nginx
+
+    kubectl get po nginx-7bf7478b77-gjzp8 -o yaml
+    (kubectl get po nginx-7bf7478b77-gjzp8) this is the command to get the specific pod resource or you replace nginx-7bf7478b77-gjzp8 with whatever returned
+    (-o yaml): thi is the output formatting flag, it tells kubectrl to print the pod's complete configuration and current state in YAML format 
+
+* Check how the deployment rollout is going
+
+    # A deployment rollout is the automated, controlled process Kubernetes uses to update your application to a new version
+    # Instaed of stoppping everything at once, it gradually replaces old pods with new ones, ensuring the application stays available to users with zero downtime 
+
+    kubectl rollout status deploy nginx
+    (rollout status): This is the specific action used to check the real-time status of a deployment status
+
+* Update the nginx image to nginx:1.19.8
+
+    # The objective is to update the image of already existing deployment. This action will trigger a deployment rollout
+
+    Method I: The kubectl set image command
+    kubectl set image deploy nginx nginx=nginx:1.19.8
+    (kubectl set image): This command is specifically designed to update container images
+    (deploy nginx): This specifies the resource type and the name of th resource to update
+    (nginx=nginx:1.19.8): nginx= specifies the name of the container inside the pod to update, nginx:1.19.8 specifies the new image to use 
+
+    Method II: The kubectl edit command 
+    kubectl edit deploy nginx 
+    # This command will open the live YAML configuration of the nginx deployment 
+    # find the image: field and change its value to nginx:1.19.8
