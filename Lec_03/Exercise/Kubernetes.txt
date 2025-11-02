@@ -520,6 +520,9 @@
     (kubectl create cronjob busybox): creates a new CronJob resource named busybox
     (--image=busybox): Tells the CronJob to use the lightweight busybox container image for its tasks 
     (--schedule="*/1 * * * *"): This is the chron synthax it means run the job every 1 min
+    # It it a little bit strange but each asterisk is a placeholder for a unit of time in this order: minute, hour, day of month, month, day of week
+    # So * * * * * means at every minute of every hour of every day of every month on every day of the week
+    # For exmaple */2 * * * * means every two minutes of every hour of every day of every month on every day of the week
 
 * See its logs and delete it
 
@@ -541,6 +544,116 @@
     # This commmand watches the list of jobs, this would run and wait for a new job to automatically appear 
 
     kubectl get po --show-labels
-    # This liss all pods including their labels 
+    # This list all pods including their labels 
 
+    kubectl logs <podName> 
+    # This fetches the logs from the specific pod that was created, with this command we can see the output of the container 
+
+    kubectl delete cj busybox
+    # This deletes the busybox CronJob and stops any future scheduled jobs from running 
+
+* Create a cron job with image busybox that runs every minute and writes 'date; echo Hello from the Kubernetes cluster' to standard output. The cron job should be terminated if it takes more than 17 seconds to start execution after its scheduled time (i.e. the job missed its scheduled time).
+
+    kubectl create cronjob time-limited-job --image=busybox --restart=Never --dry-run=client --schedule="* * * *" -o yaml -- /bin/sh -c 'date; echo Hello from the Kubernetes cluster' > time-limited-job.yaml
+
+    Check time-limited-job.yaml and under spec: section add startingDeadlineSeconds: 17 
+
+* Create a cron job with image busybox that runs every minute and writes 'date; echo Hello from the Kubernetes cluster' to standard output. The cron job should be terminated if it successfully starts but takes more than 12 seconds to complete execution.
+
+    kubectl create cronjob cronjob --image=busybox --restart=Never --dry-run=client --schedule="* * * * *" -o yaml -- /bin/sh -c 'date; echo Hello from the Kubernetes cluster' > time-limited-job2.yaml
+
+    Check time-limited-job2.yaml and add activeDeadlineSeconds under spec: 
     
+================================= Services 
+
+    # In Kubernetes, a Service is a resource that provides a single, stable network address (like a permanent IP address and DNS name) for a group of Pods
+    # It acts as an internal load balancer, automatically discovering and forwarding traffic to the correct, healthy Pods (like web servers) even if those Pods are destroyed and replaced with new ones 
+
+* Create a pod with image nginx called nginx and expose its port 80
+
+    kubectl run nginx --image=nginx --restart=Never --port=80 --expose 
+    (kubectl run nginx): this tells Kubernetes to create a new resource named nginx
+    (--image=nginx) it will use the official nginx container image
+    (--restart=Never): by default kubectl run creates a Deployment, but setting it --restart=Never tells it to create a single Pod instead
+    (--port=80): this indicates that the container inside the pod listens on port 80
+    (--expose): This is the networking part, this flag automatically creates a Service resource (also named nginx) that targets the new pod's port 80, making it accessible to other services within the cluster
+    
+* Confirm that ClusterIP has been created. Also check endpoints
+
+    kubectl get svc nginx
+    # This command checks the status of the Service just created, svc is shorter for services. This command confirms that the nginx service exists and shows its ClusterIP and the port is exposses
+
+    kubectl get ep nginx
+    # This command checks the Endpoints object for the service, ep is short for endpoints 
+    # An Endpoint objet is automatically created by the service and lists the actual IP addresses of the pods that the Service is forwarding traffic to 
+    # This is a way to confirm that the Service has successfully found the nginx pod and knows where to send the network traffic 
+
+* Get service's ClusterIP, create a temp busybox pod and 'hit' that IP with wget
+
+    kubectl get svc nginx
+    # This command gets the details of the nginx service. The goal is to look at its ClusterIP field, which is the stable, internal IP address that Kubernetes assigned to it
+    
+    kubectl run busybox --rm --image=busybox -it --restart=Never -- wget -O- [PUT THE POD'S IP ADDRESS HERE]:80 exit
+    (--rm): This means remove the this pod sas soon as it stops, so we dont have to clean it up manually
+    (-it): This makes the pod interactive, connecting the terminal directrly to the shell inside the pod
+    (--restart=Never): ensures this is a single pod and not a Deployment
+    (wget): a simple tool to download content from a web address
+    (-O-): this tells wget to print the downloaded content (the nginx welcome page HTML) directly to the terminal instead of saving it to a file
+    ([PUT THE POD'S IP ADDRESS HERE]:80): this is where to paste the service's ClusterIP, it tells wget to connect ot the nginx service on port 80 
+
+* Create a deployment called foo using image 'dgkanatsios/simpleapp' (a simple server that returns hostname) and 3 replicas. Label it as 'app=foo'. Declare that containers in this pod will accept traffic on port 8080 (do NOT create a service yet)
+
+    kubectl create deployment foo --image=dgkanatsios/simpleapp --port=8080 --replicas=3
+    # This command creates a new Deployment with 3 replicas (pods) and each pod will run the image dgkanatsios/simpleapp
+    # The port is set to 8080 meaning that the container is expected to listen on port 8080, this doesnt expose the port to the network; it is just a piece of information
+
+    kubectl label deployment foo --overwrite app=foo
+    # This command adds or updates a label on the foo deployment
+
+* Get the pod IPs. Create a temp busybox pod and try hitting them on port 8080
+
+    # The main goal is to get teh individual, private IP addresses of the three foo pods and connecto to them from another pod inside the cluster
+    # This is done to confirm that all three pods are running and serving different hostnames
+
+    kubectl get pods -l app=foo -o wide
+    # This command lists all pods (get pods) that have the lable app=foo (-l app=foo)
+    # The -o wide flag is key, as it adds a column to the results showing each pod's internal IP addresses
+
+    kubectl run busybox --image=busybox --restart=Never -it --rm -- sh wget -O- <POD_IP_HERE>:8080
+    (-it): starts the pod in interactive mode and connects the terminal on the local machine to its shell (sh)
+    (--rm): Automatically removes the pod when it finishesh
+    (--restart=Never): Ensures it creates a single Pod and not Deployment
+    (wget): this is a tool to fetch content from a URL
+    (-O-) tells wget to print the result to the terminal instead of saving it to a file
+    # The goal here is to run this command three seperate times, once for each pod IP, to see the different hostnames
+
+* Create a service that exposes the deployment on port 6262. Verify its existence, check the endpoints
+
+    kubectl expose deploy foo --port=6262 --target-port=8080
+    # This is the main command, it creates a new Service named food that exposes the Deployment also named foo
+    (--port=6262): This is the port the Service itself will listeon on, other podss in the cluster will send traffic to the Service's IP address on port 6262
+    (--target-port=8080): This is the port on the pods where the traffic should be sent, the simpleapp containers are listening on port 8080, so the Service forwards the request to that port
+    
+    kubectl get service foo
+    # This command verifies that the Service was successfully created, it will display the Service's name, its internal ClusterIP and the port it exposes 6262 
+
+    kubectl get endpoints foo 
+    # This command shows the inidividual, private IP addresses of the three pods from the food deployment, confirming that the Service has successfully found them and knows to send traffic to them on port 8080
+
+* Create a temp busybox pod and connect via wget to foo service. Verify that each time there's a different hostname returned. Delete deployment and services to cleanup the cluster
+
+    kubectl get svc
+    # This command lists all services, we will see the ClusterIP for the food service 
+
+    kubectl run busybox --image=busybox -it --rm --restart=never -- sh wget -0- foo:6262
+    # This command is run inside the busybox pod's shell, it will usewget to connect ot the food service
+    # The service then load-balances this request to one of its three pods, which return its unique hostname
+
+    kubectl delete svc
+    # This command deletes the Service named foo, removing the internal load balancer
+
+    kubectl delete deploy foo 
+    # This command deletes the Deployment named foo
+
+
+
