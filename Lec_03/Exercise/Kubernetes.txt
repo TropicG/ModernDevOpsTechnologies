@@ -384,3 +384,163 @@
     kubectl edit deploy nginx 
     # This command will open the live YAML configuration of the nginx deployment 
     # find the image: field and change its value to nginx:1.19.8
+
+* Check the rollout history and confirm that the replicas are OK
+
+    # The goal is to check the update history of a deployment named 'nginx' and veryfi that its current state is correct 
+
+    kubectl rollout history deploy nginx 
+    # This command shows the history of all the updates (rollout) that have been applied to the deployment named nginx 
+
+    kubectl get deploy nginx 
+    # This command retrieves the current status of the nginx deployment
+
+    kubectl get rs 
+    # This command lists all the ReplicaSets (rs is short for replica sets) in your cluster 
+
+* Undo the latest rollout and verify that new pods have the old image (nginx:1.18.0)
+
+    kubectl rollout undo deploy nginx
+    (rollout undo): This command is used to revert to a previouys version of a resource
+    (deploy nginx): This specifies the resource you want to roll back 
+    # This command takes the deployment named nginx and revert it to the version it had before the most recent update 
+    # Remember that Kubernetes keeps a history of changes for each Deployment, this command triggers a new rollout, but instaed of usinga new image, it uses the confiugration from the prevoius reviosn
+
+    kubectl get po
+    # This is a command to list all the Pods in the current namespace 
+    # The goal is to find the name of the new Pods that was just created by the rollback, these new pods will have a STATUS of RUNNING, select one name from the list
+
+    kubectl describe po <selectedName> | grep i- image
+    (kubectl describe po <selectedName>): retriteves detailed, human-readable information about a specific pod, for example the selectedName could be (nginx-5ff4457d65-nslc1)
+    (| gep -i image): is a pipeline and gets the output (from the left side of |) and takes it as an input, it tells grep (command to search in a text) to search for the word 'image'
+
+================================= Jobs 
+
+    # In Kubernetes, a Job is a resource that creates one or more Pods to run a specific task to completion
+    # Unlike other resources that run continuously (like a web server), a Job is meant for "one-off" tasks, ensuring that the task finishes successfully just once
+    # A Job is for any task that needs to run until it is successfully finished, rather than running continuously 
+
+* Create a job named pi with image perl:5.34 that runs the command with arguments "perl -Mbignum=bpi -wle 'print bpi(2000)'"
+
+    kubectl create job pi --image=perl:5.34 -- perl -Mbignum=bpi -wle 'pring bpi(2000)'
+    (kubectl create job pi): tells Kubernetes to create a new resource job that will run its task until it successfully completes
+    (--image=perl:5.35): it will use the offical Perl iamge on version 5.34
+    (--): it tells kubectl that all arguments after it are the command and arguments to be run inside the container
+    (perl -Mbignum=bpi -wle 'print bpi(200)'): This is the command that runs iside the perl:5.34 container it does something but it is not in our bisness to know 
+    
+* Wait till it's done, get the output
+
+    Method I: The Better Way 
+    kubectl get jobs -w
+    # This command watches (-w) the status of all jobs, you should find on the screen the pi job 
+    kubectl logs job/pi
+    # This is the command that tells Kubectl to get the logs of the pod that managed the job named pi
+    kubectl delete job pi
+    # This is the command that deletes the job
+
+    Method II: The best and automated way
+    kubectl wait --for=condition=complete --timeout=300s job pi
+    # This command tells kubectl to wait until job pi reports its condition as complete, it will stop waiting when the job is done
+    kubectl logs job/pi
+    # The same command in Method I
+    kubectl gelete job pi 
+
+* Create a job with the image busybox that executes the command 'echo hello;sleep 30;echo world'
+
+    kubectl create job busybox --image=busybox -- /bin/sh -c 'echo hello;sleep 30;echo world'
+    (kubectl create job busybox): creates a new job resource named busybox
+    (--image=busybox): this specifies that the job should use the busybox image
+    (--) sperates the kubectl command options from the command that will be run inside the container
+
+* Follow the logs for the pod (you'll wait for 30 seconds)
+
+    kubectl get po
+    # This command lists all the pods in the current namespace, you will have to search for the name of the pod it is in the first collumn
+
+    kubectl logs <nameOfThePod> -f 
+    # This command fetches the logs from the pod named <nameOfThePod>, -f means follow and it shows live what did the pod do 
+
+* See the status of the job, describe it and see the logs
+
+    kubectl get jobs
+    # This command lists a summary of all Job resources in the current Kubernetes namespace
+    # It will show the name of the jobs, how many pods are desired and how many have actually completed and how long the job took to run 
+
+    kubectl describe jobs busybox
+    # This command gives a detailed, human-readable description of the specific job names busybox, it is used for debugging and inspection
+
+    kubectl logs job/busyvox
+    # This command fetches the logs from the pod that was run by the job named busybox
+
+* Delete the job
+
+    kubectl delete job busybox 
+
+* Create the same job, make it run 5 times, one after the other. Verify its status and delete it
+
+    kubectl create job --image=busybox --dry-run=client -o yaml -- /bin/sh -c 'echo hello;sleep 30;echo world' > job.yaml 
+    (kubectl create jo busybox): Creates a job with the name of busybox
+    (--dry-run=client): this tells kubectl dont create this resource in the cluster
+    (-o yaml): this tells kubectl instead of creating it to print the YAML file to a file
+    (> job.yaml) this is a standart shell command that takes the output and saves it into a new file named job.yaml
+
+    Check job.yaml and add line completions: 5 to the spec section of the yaml file 
+    # By default a job has completions: 1
+
+    kubectl create -f job.yaml
+    # This command tells Kubernetes to create whatever resource is defined in the job.yaml
+
+    kubectl get job busybox -w
+    # This command watched the status of the busybox job 
+
+    kubectl delete job busybox 
+    # This command deletes the job 
+
+* Create the same job, but make it run 5 parallel times
+
+    Use again job.yaml since we will need to change it
+    Open the yaml file and add parallelism: 5 under spec: section
+    # This tells Kubernetes that you are allowed to run up to 5 pods at the same time for this job 
+    # By default completions might not be set, but it will gain the value of parallelism
+
+    kubectl create -f job.yaml
+    # This command creates the job in the cluster using the modified file, Kubernetes will immediately start creating all 5 pods simultaneously 
+
+    kubectl get jobs
+    # This command checks the status of the jobs 
+
+================================= Cron Jobs
+
+    # A kubernetes conjob is a resource that automatically creates Jobs on a repeating schedule 
+    # It is used to automate recurring tasks, such as running a backup every night at 2AM, generating a report every Monday, or cleaning up old data every hour 
+
+* Create a cron job with image busybox that runs on a schedule of "*/1 * * * *" and writes 'date; echo Hello from the Kubernetes cluster' to standard output
+
+    kubectl create cronjob busybox --image=busybox --shcedule="*/1 * * * *" -- /bin/sh -c "data; echo Hello from the Kubernetes cluster"
+    (kubectl create cronjob busybox): creates a new CronJob resource named busybox
+    (--image=busybox): Tells the CronJob to use the lightweight busybox container image for its tasks 
+    (--schedule="*/1 * * * *"): This is the chron synthax it means run the job every 1 min
+
+* See its logs and delete it
+
+    kubectl get po
+    # This command lists all the pods in the namespace
+
+    kubectl logs <busybox-***> 
+    # This command fetches the logs from the specific pod you identified in the first step
+
+    kubectl delete cj busybox
+    # This command deletes the CronJob itself and it doesnt just delete the pods that already ran, but it stops any future jobs from being created by this schedule
+
+* Create the same cron job again, and watch the status. Once it ran, check which job ran by the created cron job. Check the log, and delete the cron job
+
+    kubectl get cj
+    # This command lists all CronJobs in the namespace, allowing to confirm that certain CronJob exists 
+
+    kubectl get jobs --watch
+    # This commmand watches the list of jobs, this would run and wait for a new job to automatically appear 
+
+    kubectl get po --show-labels
+    # This liss all pods including their labels 
+
+    
