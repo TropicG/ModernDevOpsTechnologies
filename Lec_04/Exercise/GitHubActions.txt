@@ -1,0 +1,60 @@
+* Simple GitHub Actions yaml workflow 
+
+    Check SimpleGitHubActionsWorkflow.yam
+    (name): Sets the display name for this specific automation pipeline in GitHubActions
+    (on push): This tells GitHub to run this workflow every time someone pushes code to the repository
+    (jobs): roups together all the different tasks that the workflow will run
+    (build): the name of the specific job 
+    (runs-on): Specifies the type of virtual machine which wil be used
+    (container): What kind of container will be run inside the image
+    (steps): A list of the sequential actions the job will perform.
+    (- name): Sets the name for the specific step in the job 
+    (uses): call reusable pieces of code
+
+* Superlinter
+
+    Super-linter is an "all-in-one" automated tool designed to check your code for errors and consistency
+
+    Key functions:
+    - It identifies bugsm syntax errors or poor formatting before the code is even run
+    - It has multi-language support
+    - It is designed to be used as a GitHub Action
+
+    Typically super linter is used as a separated job in GitHub actions:
+    - Job 1 is building, compiling the code to make sure it works
+    - Job 2 is linting, uses Super-linter to make sure the code is clean and follows professional standards
+
+* Uploading and downloading artifacts in GitHubActions
+
+    In GitHub Actions, every time a new job starts, it runs on a completely fresh virtual machine.
+    This means files created in one job are deleted and not available to the next job. Artifacts are used to solve this problem
+
+    Uploading Artifacts (actions/upload-artifact@v4)
+    (actions/upload-artifact@v4) is a pre-made GitHub Action used to save and store files generated during a workflow run
+    # This is used to save files so they persist after the job finishes
+    - name: Upload a Build Artifact
+      uses: actions/upload-artifact@v4 # Action to use
+      with: # Parameters for the action
+        name: my-artifact # Name of the artifact to upload. Optional. Default is 'artifact
+        path: path/to/artifact/ # A file, directory or wildcard pattern that describes what to upload. Required.
+
+    Downloading Artifacts(actions/download-artifact@v4)
+    (actions/download-artifact@v4) is a pre-made GitHub Action used to retrieve files or folders (artifacts) that were previously saved using upload-artifact during a workflow run.
+    # This is used to retrieve those saved files into a later job.
+    - name: Download a single artifact # Name of the step
+      uses: actions/download-artifact@v4 # Action to use
+      with: # Parameters for the action
+        name: my-artifact # Name of the artifact to download. Optional. If unspecified, all artifacts for the run are downloaded.
+        path: path/to/download/artifact/     # Destination path. Supports basic tilde expansion.  # Optional. Default is $GITHUB_WORKSPACE
+
+    Check SimpleGitHubActionsWorkflow.yaml for changes 
+
+* Building DocketImages
+
+    The goal is to automatically package your application as a Docker image and host it on the GitHub Container Registry
+
+    There are required Variables in order for this to work:
+    - github_username: Usualy set to ${{ github.actor }}, this is your Github username
+    - github_password: Usually set to ${{ secrets.GITHUB_TOKEN }}, this is an automated token for authentication 
+    - GIT_COMMIT: the specific commit hash being built 
+    
