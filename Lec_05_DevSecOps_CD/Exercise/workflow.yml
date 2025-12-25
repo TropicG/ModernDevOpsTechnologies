@@ -1,0 +1,98 @@
+name: Main workflow # името на работния процес, което ще се вижда в интерфейса на GitHubActions
+on: push # този процес трябва да се стартира на всеки push (тоест качване на код)
+jobs: # начало на списъка със задачи
+  Build: # това е името на първата задача, която трябва да се изпълни
+    runs-on: ubuntu-latest # тази задача, ще се изпълни на виртуална машина с най-новта версия на Ubuntu Linux
+    container: gradle:6-jdk11 # Всички стъпки в тази задача ще се изпълнят вътре в Docker контейнер, който има предварително инсталирани Gradle 6 и Java 
+    steps: # списък със стъпки, които ще трябва тази задача да направи
+      - name: Clone down repository # име на стъпката
+        uses: actions/checkout@v4 # използва се готова акция за изтегляне на кода от хранилището в работна среда
+      - name: Build application # име на стъпка
+        run: ci/build-app.sh # стартира скрипт, който компилира приложението
+      - name: Test # име на стъпката
+        run: ci/unit-test-app.sh # стартира се скрипт за пускане на unit testovete
+      - uses: actions/upload-artifact@v4 # понеже всяка задача работи в изолирана среда, тук се запазва текущото състояние не файловата система като артефакт
+        with:
+          name: code # името на артефакта
+          path: . # запазва го в текущата директория
+          include-hidden-files: true # включва и скритите файлове 
+  SnykScan: # Проверка за уязвимост със Snyk
+    runs-on: ubuntu-latest # средата на изпълнение е ubuntu
+    container: gradle:6-jdk11 # използва се същия контейнер
+    needs: [Build] # Тази задача ще започне само ако задачата Build е завършила успешно
+    steps: # стъпки, които ще се изпълняват 
+      - name: Download code
+        uses: actions/download-artifact@v4 # изтегля артефакта 'code' създаден в предишната стъпка, това възстановява файловете така, катк са били след компилацият
+        with:
+          name: code
+          path: .
+      - name: Remove gradlew to force Snyk to use system Gradle 
+        run: rm -f app/gradlew app/gradlew.bat # принуждава Snyk да използва системния Gradle на контейнера
+      - name: Install Snyk CLI # тази стъока кара да се инсталира унструмента Snyk CLI 
+        run: |
+          curl -Lo snyk https://static.snyk.io/cli/latest/snyk-linux
+          chmod +x snyk
+          mv snyk /usr/local/bin/
+      - name: Authenticate Snyk
+        run: snyk auth ${{ secrets.SNYK_TOKEN }}
+      - name: Run Snyk test (check for vulnerabilities)
+        working-directory: ./app
+        run: snyk test --all-projects --severity-threshold=high || true
+      - name: Run Snyk monitor (send results to Snyk dashboard)
+        working-directory: ./app
+        run: snyk monitor --all-projects || true
+  TrivyScan:
+    runs-on: ubuntu-latest
+    needs: [Build]
+    steps:
+      - name: Download code
+        uses: actions/download-artifact@v4
+        with:
+          name: code
+          path: .
+      - name: Install Trivy
+        run: |
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+          echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update
+          sudo apt-get install -y trivy
+      - name: Install Python dependencies
+        run: |
+          pip install -r component-test/requirements.txt
+      - name: Run Trivy filesystem scan
+        run: trivy fs --severity HIGH,CRITICAL --exit-code 0 .
+      - name: Run Trivy config scan
+        run: trivy config --severity HIGH,CRITICAL --exit-code 0 .
+  markdownlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install markdownlint-cli
+        run: npm install -g markdownlint-cli
+      - name: Run Markdown Lint
+        run: markdownlint "**/*.md"
+  SonarCloudScan:
+    runs-on: ubuntu-latest
+    needs: [Build]
+    steps:
+      - name: Download code
+        uses: actions/download-artifact@v4
+        with:
+          name: code
+          path: .
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+      - name: Cache SonarCloud packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@v2
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io

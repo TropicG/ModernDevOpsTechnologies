@@ -1,0 +1,37 @@
+* SAST
+
+    Static application security testing is a testing methodology that analyzes source code to find security vulnerabilities
+    SAST scans an application before the code is compiled. It’s also known as white box testing
+
+* What problems does SAST solve?
+
+    A key strength of SAST tools is the ability to analyze 100% of the codebase. Additionally, they are much faster than manual secure code reviews performed by humans.
+
+    Следните инструменти се използват за SAST:
+    - Trivy: Използва се за откриване на уязвимости в контейнери (като Docker images), файлови системи и конфигурационни файлове
+    - Sonar: Tова е стандартът за качество на кода, той анализира кода не само за сигурност, но и за code quality
+    - Sync: Това е инструмент, който сканира външните библиотеки, които проектът ползва и предупреждава, ако някоя от тях е компрометирана.
+
+* Sync 
+
+    Има четири основни модула на Snyk:
+    - Snyk Code: Това е инструмент, който сканира код в реално време, докато се пише в IDE. Той също дава бързи съвети как да се поправят грешките веднага
+    - Snyk Open Source: Сканира външните библиотеки, които проектът използва, за да се открият известни уязвимости или проблеми с лицензите
+    - Snyk Container: Помага да се открият проблемите в контейнерите, за да има сигурност, че в средата която ще върви приложението е защитена
+    - Snyk IaC: Проверява конфигурационните файлове за облачната инфраструктура за пропуски в сигурността преди и след внедряване
+
+* Trivy 
+
+    Trivy scan покрива широк спектър от проверки:
+    - Контейнерни изображения
+    - Файлови системи
+    - Git хранилища
+    - Изображения на виртуални машини
+    - Kubernetes и AWS конфигурации
+
+    Това е общо взето арсенала за откриване на проблеми в сигурността на всяко ниво - от писано на код до инфраструктурата и контейнерите 
+
+Виж workflow.yaml, за да видиш какво се случва по време на pipeline
+
+
+
