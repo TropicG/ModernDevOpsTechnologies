@@ -1,0 +1,10 @@
+Неща, които да запомниш, докато учиш темата:
+- Waterfall метода 
+- LeanStartup
+- Методологията на DevOps и съответните цели
+- Фазите през които се минава за CI
+- Фазите през които се минава за Continiuos Deployment
+- Фазите през които се мианва за Continious Delivery
+- Малко инфо за Source Code Management, главно да се говори как Git има history на промените и помага за рарешаването на конфликти в кода и за branch
+- Говори за дадени branching стратегии свързани с Git бранчването
+# Тук говоря за Basic Git Flow, Git Feature Branch, Git feature Workflow with stable branches и Git Flow
